@@ -339,17 +339,21 @@ PATTERNS = [
     # 7. Hardcoded Config Passwords (Medium/High)
     {
         "id": "password-assignment",
-        "label": "Hardcoded Password in Code/Config",
+        "label": "Hardcoded Password / Key in Code or Config",
         "category": "Code & Config Secrets",
         "severity": "High",
         "regex": re.compile(
-            r"(?:password|passwd|pwd|db_pass|db_password|mysql_pwd|smtp_password|"
-            r"email_password|admin_password|root_password|secret_key|master_key)"
-            r"\s*[=:]\s*['\"](?P<secret>[^'\"]{4,})['\"]",
+            r"(?:database_?password|databasePassword|db_?pass(?:word)?|secret_?key|secretKey|"
+            r"api_?token|apiToken|api_?key|apiKey|jwt_?(?:signing_?)?secret|jwtSecret|"
+            r"encryption_?key|encryptionKey|admin_?password|adminPassword|smtp_?password|smtpPassword|"
+            r"redis_?password|redisPassword|service_?account_?key|serviceAccountKey|"
+            r"cloud_?secret|cloudSecret|Database\s+password|Admin\s+password|API\s+key|"
+            r"JWT\s+(?:signing\s+)?secret|Encryption\s+key|Cloud\s+secret|password|passwd|pwd)"
+            r"\s*[=:]\s*['\"]?(?P<secret>[^\s,'\"#]{4,})['\"]?",
             re.IGNORECASE,
         ),
-        "min_entropy": 1.8,
-        "evidence": "Explicit password variable assignment in source code or configuration.",
+        "min_entropy": 0.5,
+        "evidence": "Explicit password or secret key assignment in source code, log, or configuration.",
     },
     {
         "id": "env-unquoted-secret",
@@ -357,9 +361,9 @@ PATTERNS = [
         "category": "Code & Config Secrets",
         "severity": "Medium",
         "regex": re.compile(
-            r"(?:PASSWORD|PASSWD|SECRET_KEY|AUTH_TOKEN|PRIVATE_KEY)\s*=\s*(?P<secret>[^\s#'\"]{6,})",
+            r"(?:[A-Za-z0-9_]*(?:PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL|AUTH)[A-Za-z0-9_]*)\s*=\s*['\"]?(?P<secret>[^\s#'\"]{6,})['\"]?",
         ),
-        "min_entropy": 2.2,
+        "min_entropy": 1.5,
         "evidence": "Unquoted secret value assigned in environment variable definition.",
     },
     {
@@ -483,18 +487,21 @@ def scan_text(content: str, source_name: str = "Input") -> List[Dict[str, Any]]:
             if len(secret_val) < 4:
                 continue
 
-            # Filter obvious documentation placeholders
-            if is_placeholder(secret_val):
-                continue
-
             entropy = calc_entropy(secret_val)
             min_ent = pattern.get("min_entropy", 0.0)
             if entropy < min_ent:
                 continue
 
-            is_test_pat = pattern["id"] == "stripe-test-key"
-            confidence, conf_reason = compute_confidence(pattern, secret_val, raw_line, context_type, entropy)
-            severity = compute_evidence_severity(pattern["severity"], confidence, context_type, is_test_pat)
+            is_mock_value = is_placeholder(secret_val)
+            is_test_pat = (pattern["id"] == "stripe-test-key")
+
+            if is_mock_value:
+                confidence = "Low"
+                conf_reason = "Identified as placeholder, example, or test credential."
+                severity = "Low"
+            else:
+                confidence, conf_reason = compute_confidence(pattern, secret_val, raw_line, context_type, entropy)
+                severity = compute_evidence_severity(pattern["severity"], confidence, context_type, is_test_pat)
 
             fp = secret_fingerprint(secret_val)
 

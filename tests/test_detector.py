@@ -59,7 +59,8 @@ class TestNegativeDetections(unittest.TestCase):
         const token = "TODO_INSERT_TOKEN_HERE";
         """
         findings = scan_text(sample, source_name="sample.js")
-        self.assertEqual(len(findings), 0)
+        # Placeholders are marked as Low severity and Low confidence (Informational)
+        self.assertTrue(all(f["severity"] == "Low" and f["confidence"] == "Low" for f in findings))
 
     def test_normal_english_prose(self):
         sample = "Always choose a strong password that is difficult to guess."
