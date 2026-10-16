@@ -1,11 +1,11 @@
-# 🛡️ CredWatch
+#  CredWatch
 
 > **Zero-dependency, high-precision secret scanner and local GUI for developers and security teams.**  
 > Detect exposed API keys, database passwords, tokens, and private keys across source code, logs, `.env` files, and ZIP archives—with zero false positives on normal code variables.
 
 ---
 
-## 🛑 What Problem Does CredWatch Solve?
+##  What Problem Does CredWatch Solve?
 
 1. **Accidental Credential Exposure**: Developers frequently commit `.env` files, paste sensitive tokens into logs, or leave hardcoded database passwords in repositories. Once pushed, bots scrape and exploit them in seconds.
 2. **Alert Fatigue from Traditional Scanners**: Many scanners blindly flag any line containing `"key"`, `"token"`, or `"password"`. They trigger hundreds of false alarms on benign code variables (`cacheKey`, `oldestKey`), environment reads (`process.env.AUTH_TOKEN`), and function arguments (`password: str`).
@@ -14,17 +14,17 @@
 
 ---
 
-## 💡 What Makes CredWatch Different?
+##  What Makes CredWatch Different?
 
-- **⚡ Zero External Dependencies**: Runs entirely on the Python Standard Library (`json`, `re`, `ast`, `zipfile`, `http.server`). No `pip install` required.
-- **🎯 Precision Filtering**: Distinguishes between literal hardcoded credentials and safe programming syntax (environment variable reads, method calls, property accesses, and TypeScript/Python type annotations).
-- **🖥️ Minimalist Web GUI + Powerful CLI**: Includes both an interactive, dark-mode browser interface (with drag-and-drop and one-click masking reveal) and a scriptable CLI for CI/CD pipelines.
-- **🛡️ Built-in Anti-DoS Protection**: Safely handles zip archives with decompression bomb protection (100x ratio cap, 50 MB uncompressed limit), path traversal defense (`../`), and ReDoS line-length guards.
-- **🔒 100% Local & Private**: All scanning and archive parsing happen in local RAM. Zero telemetry, zero cloud calls, zero data retention.
+- **  Zero External Dependencies**: Runs entirely on the Python Standard Library (`json`, `re`, `ast`, `zipfile`, `http.server`). No `pip install` required.
+- ** Precision Filtering**: Distinguishes between literal hardcoded credentials and safe programming syntax (environment variable reads, method calls, property accesses, and TypeScript/Python type annotations).
+- ** Minimalist Web GUI + Powerful CLI**: Includes both an interactive, dark-mode browser interface (with drag-and-drop and one-click masking reveal) and a scriptable CLI for CI/CD pipelines.
+- ** Built-in Anti-DoS Protection**: Safely handles zip archives with decompression bomb protection (100x ratio cap, 50 MB uncompressed limit), path traversal defense (`../`), and ReDoS line-length guards.
+- ** 100% Local & Private**: All scanning and archive parsing happen in local RAM. Zero telemetry, zero cloud calls, zero data retention.
 
 ---
 
-## 🚀 Quick Start (Under 10 Seconds)
+##  Quick Start (Under 10 Seconds)
 
 ### Option A: Launch the Web GUI (Interactive)
 ```bash
@@ -54,7 +54,7 @@ python cli.py scan ./my-project --exclude-placeholders
 
 ---
 
-## 📂 Supported File Types
+##  Supported File Types
 
 CredWatch supports deep inspection across configuration files, source code, archives, and unstructured logs:
 
@@ -68,7 +68,7 @@ CredWatch supports deep inspection across configuration files, source code, arch
 
 ---
 
-## 🔍 Detected Credential Types
+##  Detected Credential Types
 
 CredWatch scans for verified pattern formats, entropy, and assignment context:
 
@@ -81,7 +81,7 @@ CredWatch scans for verified pattern formats, entropy, and assignment context:
 
 ---
 
-## ⚖️ Evidence-Based Severity vs. Confidence
+##  Evidence-Based Severity vs. Confidence
 
 CredWatch separates **Severity** (impact if compromised) from **Confidence** (certainty of match):
 
@@ -98,7 +98,7 @@ CredWatch separates **Severity** (impact if compromised) from **Confidence** (ce
 
 ---
 
-## 🔒 Security & Privacy Guarantees
+##  Security & Privacy Guarantees
 
 1. **Safe Redaction by Default**: Raw cleartext secrets are **never** written to reports, terminal logs, or finding fingerprints. Fingerprints use one-way SHA-256 hashes (`secret_hash`).
 2. **Local Loopback Only**: The web server binds strictly to `127.0.0.1:5050`, never exposing the port to external networks or `0.0.0.0`.
@@ -107,7 +107,7 @@ CredWatch separates **Severity** (impact if compromised) from **Confidence** (ce
 
 ---
 
-## 🧪 Automated Testing
+##  Automated Testing
 
 CredWatch includes an exhaustive test suite covering positive detections, negative false-positive regressions, AST parsers, safety limits, and archive scanning:
 
@@ -123,6 +123,6 @@ OK
 
 ---
 
-## 📜 License
+##  License
 
 MIT License. Free for personal, open-source, and commercial security auditing.
