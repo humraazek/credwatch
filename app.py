@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
-Credential Detector - Interactive Web GUI (v2.0)
-Evidence-Based Detection, Separated Severity & Confidence,
-Context-Aware Classification, and Cross-File Deduplication.
-
+Credential Detector - Minimalist Black GUI (Mistral.ai aesthetic)
 Zero external dependencies - Uses Python standard library only.
 """
 
@@ -24,46 +21,48 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Credential & Secret Leak Detector v2.0</title>
+  <title>Credential Detector</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-base: #0B0F17;
-      --bg-surface: #121824;
-      --bg-surface-elevated: #1B2433;
-      --border: #233044;
-      --border-focus: #3B82F6;
-      --text-main: #F3F4F6;
-      --text-muted: #94A3B8;
-      --accent: #3B82F6;
-      --accent-hover: #2563EB;
-      --critical: #EF4444;
-      --critical-bg: rgba(239, 68, 68, 0.12);
-      --high: #F97316;
-      --high-bg: rgba(249, 115, 22, 0.12);
-      --medium: #F59E0B;
-      --medium-bg: rgba(245, 158, 11, 0.12);
-      --low: #10B981;
-      --low-bg: rgba(16, 185, 129, 0.12);
-      --radius: 12px;
+      --bg-black: #000000;
+      --bg-card: #0A0A0A;
+      --bg-card-hover: #111111;
+      --border-subtle: #1C1C1C;
+      --border-strong: #2E2E2E;
+      --text-primary: #EDEDED;
+      --text-secondary: #888888;
+      --text-tertiary: #555555;
+      --mistral-orange: #FF5A00;
+      --mistral-orange-glow: rgba(255, 90, 0, 0.15);
+      --crit-red: #FF3B30;
+      --high-orange: #FF5A00;
+      --med-amber: #FFB340;
+      --low-green: #30D158;
+      --font-sans: 'Geist', -apple-system, sans-serif;
+      --font-mono: 'Geist Mono', monospace;
+      --font-heading: 'Space Grotesk', sans-serif;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      background-color: var(--bg-base);
-      color: var(--text-main);
-      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: var(--bg-black);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
     }
 
     header {
-      background: rgba(18, 24, 36, 0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 2rem;
+      background-color: var(--bg-black);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.9rem 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -75,414 +74,380 @@ HTML_PAGE = """<!DOCTYPE html>
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.85rem;
     }
 
-    .brand-icon {
-      width: 38px;
-      height: 38px;
-      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+    .brand-mark {
+      width: 18px;
+      height: 18px;
+      background-color: var(--mistral-orange);
+      border-radius: 3px;
+      display: inline-block;
     }
 
-    .brand h1 {
-      font-size: 1.15rem;
+    .brand-title {
+      font-family: var(--font-heading);
       font-weight: 700;
-      letter-spacing: -0.02em;
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
+      color: #FFFFFF;
     }
 
-    .brand-sub {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-top: 1px;
+    .brand-version {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-tertiary);
+      border: 1px solid var(--border-subtle);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
     }
 
-    .badge-status {
-      display: flex;
+    .status-dot {
+      display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      font-size: 0.8rem;
-      color: var(--low);
-      background: var(--low-bg);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 0.25rem 0.65rem;
-      border-radius: 9999px;
-      font-weight: 600;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
     }
 
-    .pulse {
-      width: 7px;
-      height: 7px;
-      background-color: var(--low);
+    .dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--low-green);
       border-radius: 50%;
-      animation: pulse 1.8s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(0.95); opacity: 0.8; }
-      50% { transform: scale(1.3); opacity: 1; }
-      100% { transform: scale(0.95); opacity: 0.8; }
     }
 
     main {
       flex: 1;
-      max-width: 1250px;
+      max-width: 1100px;
       width: 100%;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 2.5rem 1.5rem;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
     }
 
-    .card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
       padding: 1.5rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     }
 
     .tabs {
       display: flex;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1rem;
+      gap: 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 0.75rem;
       margin-bottom: 1.25rem;
     }
 
     .tab-btn {
-      background: transparent;
+      background: none;
       border: none;
-      color: var(--text-muted);
-      font-family: inherit;
-      font-weight: 600;
-      font-size: 0.95rem;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 0.85rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s;
+      padding-bottom: 0.75rem;
+      margin-bottom: -0.75rem;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
     }
 
     .tab-btn:hover {
-      color: var(--text-main);
-      background: var(--bg-surface-elevated);
+      color: var(--text-primary);
     }
 
     .tab-btn.active {
-      color: white;
-      background: var(--accent);
-    }
-
-    .dropzone {
-      border: 2px dashed var(--border);
-      border-radius: var(--radius);
-      padding: 3rem 1.5rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: rgba(18, 24, 36, 0.4);
-    }
-
-    .dropzone:hover, .dropzone.dragover {
-      border-color: var(--accent);
-      background: rgba(59, 130, 246, 0.05);
-    }
-
-    .dropzone-icon {
-      font-size: 2.5rem;
-      margin-bottom: 0.75rem;
-      display: inline-block;
-    }
-
-    .dropzone p {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    .dropzone strong {
-      color: var(--text-main);
+      color: #FFFFFF;
+      border-bottom: 2px solid var(--mistral-orange);
     }
 
     textarea {
       width: 100%;
-      min-height: 220px;
-      background: var(--bg-base);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text-main);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
-      padding: 1rem;
+      min-height: 180px;
+      background: var(--bg-black);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      padding: 0.85rem;
       resize: vertical;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     textarea:focus {
       outline: none;
-      border-color: var(--border-focus);
+      border-color: var(--border-strong);
     }
 
-    .controls {
+    .dropzone {
+      border: 1px dashed var(--border-strong);
+      border-radius: 6px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg-black);
+      transition: border-color 0.15s;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--mistral-orange);
+    }
+
+    .dropzone p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .dropzone strong {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .sub-drop {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-tertiary);
+      margin-top: 0.35rem;
+    }
+
+    .action-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-top: 1.25rem;
       flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .samples-bar {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .sample-chip {
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.82rem;
-      padding: 0.4rem 0.8rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.15s;
-    }
-
-    .sample-chip:hover {
-      color: var(--text-main);
-      border-color: var(--accent);
-      background: rgba(59, 130, 246, 0.1);
-    }
-
-    .btn-scan {
-      background: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 0.7rem 1.75rem;
-      font-family: inherit;
-      font-size: 0.95rem;
-      font-weight: 700;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
-      transition: all 0.2s;
-    }
-
-    .btn-scan:hover {
-      background: var(--accent-hover);
-      transform: translateY(-1px);
-    }
-
-    /* Results section */
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 0.85rem;
-      margin-bottom: 1.5rem;
     }
 
-    .metric-card {
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.1rem;
-    }
-
-    .metric-title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin-bottom: 0.35rem;
-    }
-
-    .metric-value {
-      font-size: 1.7rem;
-      font-weight: 800;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .metric-critical { color: var(--critical); }
-    .metric-high { color: var(--high); }
-    .metric-medium { color: var(--medium); }
-    .metric-low { color: var(--low); }
-    .metric-total { color: var(--text-main); }
-
-    .view-toolbar {
+    .samples-row {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-
-    .view-toggle {
-      display: flex;
-      gap: 0.3rem;
-      background: var(--bg-surface-elevated);
-      padding: 0.25rem;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-    }
-
-    .toggle-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 0.35rem 0.85rem;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .toggle-btn.active {
-      background: var(--accent);
-      color: white;
-    }
-
-    .btn-export {
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border);
-      color: var(--text-main);
-      padding: 0.4rem 0.85rem;
-      border-radius: 6px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
       align-items: center;
       gap: 0.4rem;
     }
 
-    .btn-export:hover {
-      border-color: var(--accent);
+    .sample-label {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-tertiary);
+      margin-right: 0.3rem;
     }
 
-    .results-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.5rem;
+    .sample-btn {
+      background: var(--bg-black);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.25rem 0.55rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
     }
 
-    .results-table th {
-      text-align: left;
-      font-size: 0.78rem;
+    .sample-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+      background: var(--bg-card-hover);
+    }
+
+    .btn-run {
+      background: var(--mistral-orange);
+      color: #000000;
+      border: none;
+      border-radius: 5px;
+      padding: 0.55rem 1.4rem;
+      font-family: var(--font-sans);
+      font-size: 0.82rem;
       font-weight: 600;
-      color: var(--text-muted);
-      padding: 0.8rem 1rem;
-      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: opacity 0.15s;
+    }
+
+    .btn-run:hover {
+      opacity: 0.9;
+    }
+
+    /* Results section */
+    .summary-strip {
+      display: flex;
+      gap: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .summary-label {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      color: var(--text-tertiary);
     }
 
-    .results-table td {
-      padding: 1rem;
-      border-bottom: 1px solid rgba(35, 48, 68, 0.5);
-      font-size: 0.88rem;
+    .summary-count {
+      font-family: var(--font-mono);
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-top: 0.1rem;
+    }
+
+    .color-crit { color: var(--crit-red); }
+    .color-high { color: var(--high-orange); }
+    .color-med { color: var(--med-amber); }
+    .color-low { color: var(--low-green); }
+
+    .sub-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .toggle-group {
+      display: flex;
+      gap: 0.2rem;
+      background: var(--bg-black);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 2px;
+    }
+
+    .toggle-option {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .toggle-option.active {
+      background: var(--border-subtle);
+      color: #FFFFFF;
+    }
+
+    .btn-sub-action {
+      background: var(--bg-black);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-sub-action:hover {
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    th {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      padding: 0.6rem 0.8rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    td {
+      padding: 0.9rem 0.8rem;
+      border-bottom: 1px solid var(--border-subtle);
       vertical-align: top;
     }
 
-    .severity-badge {
-      display: inline-block;
-      padding: 0.25rem 0.6rem;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 700;
+    .tag-severity {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
 
-    .badge-Critical { background: var(--critical-bg); color: var(--critical); border: 1px solid rgba(239,68,68,0.3); }
-    .badge-High { background: var(--high-bg); color: var(--high); border: 1px solid rgba(249,115,22,0.3); }
-    .badge-Medium { background: var(--medium-bg); color: var(--medium); border: 1px solid rgba(245,158,11,0.3); }
-    .badge-Low { background: var(--low-bg); color: var(--low); border: 1px solid rgba(16,185,129,0.3); }
+    .sev-Critical { color: var(--crit-red); }
+    .sev-High { color: var(--high-orange); }
+    .sev-Medium { color: var(--med-amber); }
+    .sev-Low { color: var(--low-green); }
 
-    .confidence-tag {
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #93C5FD;
-      background: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.25);
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-      margin-top: 0.35rem;
+    .tag-context {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-tertiary);
+      border: 1px solid var(--border-subtle);
+      padding: 0.05rem 0.35rem;
+      border-radius: 3px;
     }
 
-    .context-tag {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 500;
-      color: var(--text-muted);
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border);
-      padding: 0.1rem 0.4rem;
+    .secret-pill {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      background: var(--bg-black);
+      border: 1px solid var(--border-subtle);
+      padding: 0.25rem 0.55rem;
       border-radius: 4px;
-    }
-
-    .secret-box {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      background: var(--bg-base);
-      border: 1px solid var(--border);
-      padding: 0.35rem 0.65rem;
-      border-radius: 6px;
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      max-width: 280px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      gap: 0.45rem;
     }
 
-    .btn-toggle-mask {
-      background: transparent;
+    .btn-reveal {
+      background: none;
       border: none;
-      color: var(--text-muted);
+      color: var(--text-tertiary);
       cursor: pointer;
-      font-size: 0.85rem;
-      padding: 0.1rem 0.3rem;
-      border-radius: 4px;
+      font-size: 0.75rem;
+      padding: 0;
     }
 
-    .btn-toggle-mask:hover {
-      color: var(--text-main);
-      background: var(--bg-surface-elevated);
+    .btn-reveal:hover {
+      color: var(--text-primary);
     }
 
-    .code-snippet {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      color: #CBD5E1;
-      max-width: 380px;
+    .snippet-text {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: #999999;
+      max-width: 320px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .safe-state {
+    .clean-state {
       text-align: center;
       padding: 2.5rem 1rem;
-      color: var(--low);
-      background: var(--low-bg);
-      border: 1px dashed rgba(16, 185, 129, 0.4);
-      border-radius: var(--radius);
-      margin-top: 1rem;
+      color: var(--low-green);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
     }
   </style>
 </head>
@@ -490,92 +455,87 @@ HTML_PAGE = """<!DOCTYPE html>
 
   <header>
     <div class="brand">
-      <div class="brand-icon">🛡️</div>
-      <div>
-        <h1>Credential & Secret Leak Detector <span style="font-size:0.75rem; color:var(--accent);">v2.0</span></h1>
-        <div class="brand-sub">Evidence-based severity &bull; Context classification &bull; Cross-file deduplication</div>
-      </div>
+      <div class="brand-mark"></div>
+      <div class="brand-title">credential-detector</div>
+      <div class="brand-version">v2.0</div>
     </div>
-    <div class="badge-status">
-      <div class="pulse"></div>
-      Engine Active
+    <div class="status-dot">
+      <div class="dot"></div>
+      <span>local</span>
     </div>
   </header>
 
   <main>
-    <div class="card">
+    <div class="panel">
       <div class="tabs">
-        <button class="tab-btn active" id="tab-paste-btn" onclick="switchTab('paste')">✏️ Paste Content</button>
-        <button class="tab-btn" id="tab-file-btn" onclick="switchTab('file')">📁 Upload File or .ZIP Archive</button>
+        <button class="tab-btn active" id="tab-paste-btn" onclick="switchTab('paste')">Paste Text</button>
+        <button class="tab-btn" id="tab-file-btn" onclick="switchTab('file')">File / Archive (.zip)</button>
       </div>
 
       <!-- Paste Tab -->
       <div id="tab-paste">
-        <textarea id="scan-input" placeholder="Paste your AI conversation logs, .env files, code, or configuration here..."></textarea>
+        <textarea id="scan-input" placeholder="Paste conversation log, .env file, or code here..."></textarea>
       </div>
 
       <!-- File Tab -->
       <div id="tab-file" style="display: none;">
         <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
-          <span class="dropzone-icon">📥</span>
-          <p><strong>Click to browse</strong> or drag & drop any file or <strong>.zip archive</strong> here</p>
-          <p style="font-size: 0.8rem; margin-top: 0.4rem;">Supports .zip repos, .env, .txt, .json, .log, .py, .js, .yaml, .toml, .properties, Dockerfiles</p>
+          <p><strong>Click to browse</strong> or drag and drop a file</p>
+          <div class="sub-drop">Supports .zip archives, .env, .json, .log, .py, .js, .yaml, .toml, Dockerfiles</div>
           <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)">
         </div>
-        <div id="file-info" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--accent); display: none;"></div>
+        <div id="file-info" style="margin-top: 0.6rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--mistral-orange); display: none;"></div>
       </div>
 
-      <!-- Controls & Test Presets -->
-      <div class="controls">
-        <div class="samples-bar">
-          <span style="font-size: 0.82rem; color: var(--text-muted);">Try a Test Sample:</span>
-          <button class="sample-chip" onclick="loadSample('chat')">🤖 AI Chat Leak</button>
-          <button class="sample-chip" onclick="loadSample('env')">⚙️ .env File</button>
-          <button class="sample-chip" onclick="loadSample('safe')">🛡️ Safe Placeholder Code</button>
+      <!-- Actions -->
+      <div class="action-bar">
+        <div class="samples-row">
+          <span class="sample-label">sample:</span>
+          <button class="sample-btn" onclick="loadSample('chat')">chat_leak</button>
+          <button class="sample-btn" onclick="loadSample('env')">env_file</button>
+          <button class="sample-btn" onclick="loadSample('safe')">safe_code</button>
         </div>
-        <button class="btn-scan" onclick="runScan()">
-          <span>🔍</span> Scan for Leaks
-        </button>
+        <button class="btn-run" onclick="runScan()">Scan Target</button>
       </div>
     </div>
 
-    <!-- Results Section -->
-    <div class="card" id="results-card" style="display: none;">
-      <div class="metrics">
-        <div class="metric-card">
-          <div class="metric-title">Total Findings</div>
-          <div class="metric-value metric-total" id="count-total">0</div>
+    <!-- Results Panel -->
+    <div class="panel" id="results-card" style="display: none;">
+      <div class="summary-strip">
+        <div class="summary-item">
+          <span class="summary-label">Findings</span>
+          <span class="summary-count" id="count-total">0</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-title">Unique Secrets</div>
-          <div class="metric-value metric-total" id="count-unique">0</div>
+        <div class="summary-item">
+          <span class="summary-label">Unique</span>
+          <span class="summary-count" id="count-unique">0</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-title">Critical</div>
-          <div class="metric-value metric-critical" id="count-critical">0</div>
+        <div class="summary-item">
+          <span class="summary-label">Critical</span>
+          <span class="summary-count color-crit" id="count-critical">0</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-title">High</div>
-          <div class="metric-value metric-high" id="count-high">0</div>
+        <div class="summary-item">
+          <span class="summary-label">High</span>
+          <span class="summary-count color-high" id="count-high">0</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-title">Medium</div>
-          <div class="metric-value metric-medium" id="count-medium">0</div>
+        <div class="summary-item">
+          <span class="summary-label">Medium</span>
+          <span class="summary-count color-med" id="count-medium">0</span>
         </div>
-        <div class="metric-card">
-          <div class="metric-title">Low / Info</div>
-          <div class="metric-value metric-low" id="count-low">0</div>
+        <div class="summary-item">
+          <span class="summary-label">Low</span>
+          <span class="summary-count color-low" id="count-low">0</span>
         </div>
       </div>
 
-      <div class="view-toolbar">
-        <div class="view-toggle">
-          <button class="toggle-btn active" id="btn-view-grouped" onclick="setViewMode('grouped')">📦 Group by Secret (Duplicates Merged)</button>
-          <button class="toggle-btn" id="btn-view-flat" onclick="setViewMode('flat')">📋 All Occurrences</button>
+      <div class="sub-bar">
+        <div class="toggle-group">
+          <button class="toggle-option active" id="btn-view-grouped" onclick="setViewMode('grouped')">grouped</button>
+          <button class="toggle-option" id="btn-view-flat" onclick="setViewMode('flat')">all</button>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="btn-export" onclick="exportReport('json')">💾 Export JSON</button>
-          <button class="btn-export" onclick="exportReport('txt')">📄 Export TXT</button>
+        <div style="display: flex; gap: 0.4rem;">
+          <button class="btn-sub-action" onclick="exportReport('json')">export json</button>
+          <button class="btn-sub-action" onclick="exportReport('txt')">export txt</button>
         </div>
       </div>
 
@@ -586,19 +546,18 @@ HTML_PAGE = """<!DOCTYPE html>
   <script>
     let activeTab = 'paste';
     let fileContent = '';
-    let currentFileName = 'Pasted Text';
+    let currentFileName = 'input';
     let isZip = false;
     let latestFindings = [];
     let latestGrouped = [];
     let currentViewMode = 'grouped';
 
     const SAMPLES = {
-      chat: `User: hey can you help me fix my connection?
-Assistant: Sure, what are you trying to connect to?
+      chat: `User: help me fix my connection
 User: my gmail password is MySecureGmailPass2026!
-User: and connect to SSH with ssh password: server_root_pass_99
-User: here is my token sk-proj-sampleOpenAiKey1234567890abcdefghij
-User: also user login: admin@company.com:SuperSecretPass!`,
+User: connect via ssh password: server_root_pass_99
+User: token sk-proj-sampleOpenAiKey1234567890abcdefghij
+User: login admin@company.com:SuperSecretPass!`,
 
       env: `PORT=3000
 DATABASE_URL=postgresql://dbuser:ProductionDbSecret99@postgres.cluster.local:5432/main
@@ -608,11 +567,8 @@ AUTH_TOKEN=jwtSecretTokenForProduction123456`,
 
       safe: `// Example placeholder code
 const dbUser = "admin";
-const dbPass = "your_password_here"; // Placeholder - should NOT be flagged
-const sampleKey = "<api_key>";       // Placeholder - should NOT be flagged
-function login() {
-  console.log("Welcome!");
-}`
+const dbPass = "your_password_here"; // Placeholder
+const sampleKey = "<api_key>";       // Placeholder`
     };
 
     function switchTab(tab) {
@@ -626,7 +582,7 @@ function login() {
     function loadSample(key) {
       switchTab('paste');
       document.getElementById('scan-input').value = SAMPLES[key];
-      currentFileName = 'Sample ' + key.toUpperCase();
+      currentFileName = key;
       isZip = false;
       runScan();
     }
@@ -640,23 +596,21 @@ function login() {
 
       if (isZip) {
         reader.onload = (e) => {
-          const dataUrl = e.target.result;
-          fileContent = dataUrl.split(',')[1];
-          document.getElementById('file-info').innerHTML = '📦 Selected ZIP Archive: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB) &mdash; <span style="color:#10B981; font-weight:600;">Will extract & scan all files inside archive</span>';
+          fileContent = e.target.result.split(',')[1];
+          document.getElementById('file-info').innerText = 'archive: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB) [in-memory scan ready]';
           document.getElementById('file-info').style.display = 'block';
         };
         reader.readAsDataURL(file);
       } else {
         reader.onload = (e) => {
           fileContent = e.target.result;
-          document.getElementById('file-info').innerHTML = '📄 Selected File: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB)';
+          document.getElementById('file-info').innerText = 'file: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
           document.getElementById('file-info').style.display = 'block';
         };
         reader.readAsText(file);
       }
     }
 
-    // Drag and drop listeners
     const dropzone = document.getElementById('dropzone');
     dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
     dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('dragover'); });
@@ -674,23 +628,22 @@ function login() {
         : fileContent;
 
       if (!content || !content.trim()) {
-        alert('Please paste some text or upload a file first.');
+        alert('Please enter text or select a file.');
         return;
       }
 
-      const scanBtn = document.querySelector('.btn-scan');
-      scanBtn.innerHTML = '<span>⏳</span> Scanning...';
-      scanBtn.disabled = true;
+      const btn = document.querySelector('.btn-run');
+      btn.innerText = 'Scanning...';
+      btn.disabled = true;
 
       try {
-        const isZipScan = (activeTab === 'file' && isZip);
         const resp = await fetch('/api/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             content: content, 
             source: currentFileName,
-            is_zip: isZipScan
+            is_zip: (activeTab === 'file' && isZip)
           })
         });
         const data = await resp.json();
@@ -700,65 +653,57 @@ function login() {
       } catch (err) {
         alert('Scan error: ' + err.message);
       } finally {
-        scanBtn.innerHTML = '<span>🔍</span> Scan for Leaks';
-        scanBtn.disabled = false;
+        btn.innerText = 'Scan Target';
+        btn.disabled = false;
       }
     }
 
     function setViewMode(mode) {
       currentViewMode = mode;
-      document.getElementById('btn-view-grouped').className = 'toggle-btn' + (mode === 'grouped' ? ' active' : '');
-      document.getElementById('btn-view-flat').className = 'toggle-btn' + (mode === 'flat' ? ' active' : '');
-      renderResultsTable();
+      document.getElementById('btn-view-grouped').className = 'toggle-option' + (mode === 'grouped' ? ' active' : '');
+      document.getElementById('btn-view-flat').className = 'toggle-option' + (mode === 'flat' ? ' active' : '');
+      renderTable();
     }
 
     function renderDashboard() {
-      const card = document.getElementById('results-card');
-      card.style.display = 'block';
+      document.getElementById('results-card').style.display = 'block';
 
-      let critical = 0, high = 0, medium = 0, low = 0;
+      let crit = 0, high = 0, med = 0, low = 0;
       latestFindings.forEach(f => {
-        if (f.severity === 'Critical') critical++;
+        if (f.severity === 'Critical') crit++;
         else if (f.severity === 'High') high++;
-        else if (f.severity === 'Medium') medium++;
+        else if (f.severity === 'Medium') med++;
         else low++;
       });
 
       document.getElementById('count-total').innerText = latestFindings.length;
       document.getElementById('count-unique').innerText = latestGrouped.length;
-      document.getElementById('count-critical').innerText = critical;
+      document.getElementById('count-critical').innerText = crit;
       document.getElementById('count-high').innerText = high;
-      document.getElementById('count-medium').innerText = medium;
+      document.getElementById('count-medium').innerText = med;
       document.getElementById('count-low').innerText = low;
 
-      renderResultsTable();
+      renderTable();
     }
 
-    function renderResultsTable() {
+    function renderTable() {
       const body = document.getElementById('results-body');
 
       if (latestFindings.length === 0) {
-        body.innerHTML = `
-          <div class="safe-state">
-            <h3>✅ No Leaked Credentials Detected</h3>
-            <p style="margin-top: 0.5rem; font-size: 0.9rem;">
-              No passwords, API keys, private keys, or exposed credentials were found.
-            </p>
-          </div>
-        `;
+        body.innerHTML = '<div class="clean-state">0 findings. Target is clean.</div>';
         return;
       }
 
       if (currentViewMode === 'grouped') {
         let html = `
-          <table class="results-table">
+          <table>
             <thead>
               <tr>
                 <th>Severity</th>
                 <th>Confidence</th>
-                <th>Detection Rule</th>
-                <th>Masked Secret</th>
-                <th>Occurrences Across Files</th>
+                <th>Rule</th>
+                <th>Secret</th>
+                <th>Occurrences</th>
               </tr>
             </thead>
             <tbody>
@@ -766,31 +711,30 @@ function login() {
 
         latestGrouped.forEach((g, idx) => {
           const occHtml = g.occurrences.map(o => `
-            <div style="margin-bottom:0.4rem;">
-              <span class="context-tag">${o.context_type}</span>
-              <strong style="color:#CBD5E1; font-family:'JetBrains Mono',monospace; font-size:0.83rem;">${o.source}:${o.line}</strong>
-              <div class="code-snippet">${o.snippet}</div>
+            <div style="margin-bottom:0.35rem;">
+              <span class="tag-context">${o.context_type}</span>
+              <span style="font-family:var(--font-mono); color:#CBD5E1; font-size:0.75rem;">${o.source}:${o.line}</span>
+              <div class="snippet-text">${o.snippet}</div>
             </div>
           `).join('');
 
           html += `
             <tr>
-              <td><span class="severity-badge badge-${g.severity}">${g.severity}</span></td>
+              <td><span class="tag-severity sev-${g.severity}">${g.severity}</span></td>
               <td>
-                <span class="confidence-tag">${g.confidence} Confidence</span>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.3rem;">${g.confidence_reason}</div>
+                <div style="font-family:var(--font-mono); font-size:0.75rem; color:#FFFFFF;">${g.confidence}</div>
+                <div style="font-size:0.68rem; color:var(--text-tertiary); max-width:200px;">${g.confidence_reason}</div>
               </td>
               <td>
-                <strong>${g.label}</strong>
-                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${g.category}</div>
-                <div style="font-size:0.72rem; color:#94A3B8; margin-top:0.3rem; max-width:250px;">${g.evidence}</div>
+                <div style="font-weight:500; color:#FFFFFF;">${g.label}</div>
+                <div style="font-size:0.68rem; color:var(--text-tertiary);">${g.category}</div>
               </td>
               <td>
-                <span class="secret-box">
-                  <span id="secret-grp-${idx}">${g.redacted_secret}</span>
-                  <button class="btn-toggle-mask" onclick="toggleSecretGroup(${idx})" title="Toggle Reveal">👁️</button>
+                <span class="secret-pill">
+                  <span id="grp-${idx}">${g.redacted_secret}</span>
+                  <button class="btn-reveal" onclick="toggleSecretGroup(${idx})">&#x25C9;</button>
                 </span>
-                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.25rem;">Entropy: ${g.entropy}</div>
+                <div style="font-family:var(--font-mono); font-size:0.68rem; color:var(--text-tertiary); margin-top:2px;">H: ${g.entropy}</div>
               </td>
               <td>${occHtml}</td>
             </tr>
@@ -801,16 +745,15 @@ function login() {
         body.innerHTML = html;
 
       } else {
-        // Flat view
         let html = `
-          <table class="results-table">
+          <table>
             <thead>
               <tr>
                 <th>Severity</th>
                 <th>Confidence</th>
-                <th>Detection Rule</th>
-                <th>Location & Context</th>
-                <th>Masked Secret</th>
+                <th>Rule</th>
+                <th>Target</th>
+                <th>Secret</th>
                 <th>Snippet</th>
               </tr>
             </thead>
@@ -820,26 +763,25 @@ function login() {
         latestFindings.forEach((f, idx) => {
           html += `
             <tr>
-              <td><span class="severity-badge badge-${f.severity}">${f.severity}</span></td>
+              <td><span class="tag-severity sev-${f.severity}">${f.severity}</span></td>
               <td>
-                <span class="confidence-tag">${f.confidence}</span>
-                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">${f.confidence_reason}</div>
+                <div style="font-family:var(--font-mono); font-size:0.75rem;">${f.confidence}</div>
               </td>
               <td>
-                <strong>${f.label}</strong>
-                <div style="font-size:0.75rem; color:var(--text-muted);">${f.category}</div>
+                <div style="font-weight:500;">${f.label}</div>
+                <div style="font-size:0.68rem; color:var(--text-tertiary);">${f.category}</div>
               </td>
               <td>
-                <span class="context-tag">${f.context_type}</span>
-                <div style="font-family:'JetBrains Mono',monospace; font-size:0.83rem; margin-top:3px;">${f.source}:${f.line}</div>
+                <span class="tag-context">${f.context_type}</span>
+                <div style="font-family:var(--font-mono); font-size:0.72rem; margin-top:2px;">${f.source}:${f.line}</div>
               </td>
               <td>
-                <span class="secret-box">
-                  <span id="secret-flat-${idx}">${f.redacted_secret}</span>
-                  <button class="btn-toggle-mask" onclick="toggleSecretFlat(${idx})" title="Toggle Reveal">👁️</button>
+                <span class="secret-pill">
+                  <span id="flt-${idx}">${f.redacted_secret}</span>
+                  <button class="btn-reveal" onclick="toggleSecretFlat(${idx})">&#x25C9;</button>
                 </span>
               </td>
-              <td><div class="code-snippet" title="${f.snippet.replace(/"/g, '&quot;')}">${f.snippet}</div></td>
+              <td><div class="snippet-text">${f.snippet}</div></td>
             </tr>
           `;
         });
@@ -851,10 +793,10 @@ function login() {
 
     function toggleSecretGroup(idx) {
       const g = latestGrouped[idx];
-      const el = document.getElementById('secret-grp-' + idx);
+      const el = document.getElementById('grp-' + idx);
       if (el.innerText === g.redacted_secret) {
         el.innerText = g.raw_secret;
-        el.style.color = '#EF4444';
+        el.style.color = 'var(--mistral-orange)';
       } else {
         el.innerText = g.redacted_secret;
         el.style.color = 'inherit';
@@ -863,10 +805,10 @@ function login() {
 
     function toggleSecretFlat(idx) {
       const f = latestFindings[idx];
-      const el = document.getElementById('secret-flat-' + idx);
+      const el = document.getElementById('flt-' + idx);
       if (el.innerText === f.redacted_secret) {
         el.innerText = f.raw_secret;
-        el.style.color = '#EF4444';
+        el.style.color = 'var(--mistral-orange)';
       } else {
         el.innerText = f.redacted_secret;
         el.style.color = 'inherit';
@@ -874,39 +816,28 @@ function login() {
     }
 
     function exportReport(format) {
-      if (latestFindings.length === 0) {
-        alert('No findings to export.');
-        return;
-      }
+      if (latestFindings.length === 0) return;
       let content = '', filename = '', mime = '';
       if (format === 'json') {
         content = JSON.stringify({ findings: latestFindings, grouped: latestGrouped }, null, 2);
-        filename = 'credential_audit_report.json';
+        filename = 'credentials_report.json';
         mime = 'application/json';
       } else {
         let lines = [
-          '===========================================================================',
-          ' CREDENTIAL & SECRET AUDIT REPORT',
-          '===========================================================================',
-          ` Total Findings: ${latestFindings.length} | Unique Secrets: ${latestGrouped.length}`,
-          '===========================================================================',
-          ''
+          'AUDIT REPORT',
+          `Findings: ${latestFindings.length} | Unique: ${latestGrouped.length}`,
+          '-------------------------------------------------------'
         ];
         latestGrouped.forEach((g, i) => {
-          lines.push(`[${i+1}] ${g.label} (${g.category})`);
-          lines.push(`    Severity: ${g.severity} | Confidence: ${g.confidence}`);
-          lines.push(`    Reason: ${g.confidence_reason}`);
-          lines.push(`    Evidence: ${g.evidence}`);
+          lines.push(`[${i+1}] ${g.label} [${g.severity}] (${g.confidence} confidence)`);
           lines.push(`    Secret: ${g.redacted_secret} (Entropy: ${g.entropy})`);
-          lines.push(`    Occurrences (${g.occurrences.length}):`);
           g.occurrences.forEach(o => {
-            lines.push(`      - ${o.source}:${o.line} [${o.context_type}]`);
-            lines.push(`        Snippet: ${o.snippet}`);
+            lines.push(`    - ${o.source}:${o.line} [${o.context_type}]`);
+            lines.push(`      ${o.snippet}`);
           });
-          lines.push('---------------------------------------------------------------------------');
         });
         content = lines.join('\\n');
-        filename = 'credential_audit_report.txt';
+        filename = 'credentials_report.txt';
         mime = 'text/plain';
       }
 
@@ -946,7 +877,7 @@ class LeakScanHandler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(body)
                 content = data.get("content", "")
-                source = data.get("source", "Input")
+                source = data.get("source", "input")
                 is_zip = data.get("is_zip", False)
 
                 if is_zip:
@@ -977,7 +908,6 @@ class LeakScanHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def log_message(self, format, *args):
-        # Silence default request logging to keep terminal clean
         pass
 
 
@@ -986,16 +916,15 @@ def main():
     httpd = HTTPServer(server_address, LeakScanHandler)
     url = f"http://127.0.0.1:{PORT}"
     print()
-    print("=" * 65)
-    print(" [*] Credential & Secret Leak Detector GUI v2.0")
-    print("=" * 65)
+    print("=" * 60)
+    print(" [*] credential-detector - Minimalist Web GUI")
+    print("=" * 60)
     print(f"  URL: {url}")
-    print("  Status: Running locally on your machine (zero external calls)")
-    print("  Press Ctrl+C to stop the server.")
-    print("=" * 65)
+    print("  Status: Running locally on your machine")
+    print("  Press Ctrl+C to stop.")
+    print("=" * 60)
     print()
 
-    # Open browser automatically
     try:
         webbrowser.open(url)
     except Exception:
@@ -1004,7 +933,7 @@ def main():
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n[+] Server stopped.")
+        print("\n[+] Stopped.")
         httpd.server_close()
 
 
