@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Credential Detector - Web GUI Application
-Local web server providing an interactive interface to scan files,
-AI conversation logs, and code snippets for leaked credentials.
+Credential Detector - Interactive Web GUI (v2.0)
+Evidence-Based Detection, Separated Severity & Confidence,
+Context-Aware Classification, and Cross-File Deduplication.
 
 Zero external dependencies - Uses Python standard library only.
 """
@@ -15,7 +15,7 @@ import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from detector import scan_text, scan_zip_bytes
+from detector import scan_text, scan_zip_bytes, group_findings_by_secret
 
 PORT = 5050
 
@@ -24,7 +24,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Credential & Secret Leak Detector</title>
+  <title>Credential & Secret Leak Detector v2.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -44,8 +44,8 @@ HTML_PAGE = """<!DOCTYPE html>
       --high-bg: rgba(249, 115, 22, 0.12);
       --medium: #F59E0B;
       --medium-bg: rgba(245, 158, 11, 0.12);
-      --safe: #10B981;
-      --safe-bg: rgba(16, 185, 129, 0.12);
+      --low: #10B981;
+      --low-bg: rgba(16, 185, 129, 0.12);
       --radius: 12px;
     }
 
@@ -60,7 +60,7 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     header {
-      background: rgba(18, 24, 36, 0.8);
+      background: rgba(18, 24, 36, 0.85);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       padding: 1rem 2rem;
@@ -79,14 +79,14 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     .brand-icon {
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       background: linear-gradient(135deg, #3B82F6, #8B5CF6);
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.25rem;
+      font-size: 1.3rem;
       box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
     }
 
@@ -96,13 +96,19 @@ HTML_PAGE = """<!DOCTYPE html>
       letter-spacing: -0.02em;
     }
 
+    .brand-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
     .badge-status {
       display: flex;
       align-items: center;
       gap: 0.4rem;
       font-size: 0.8rem;
-      color: var(--safe);
-      background: var(--safe-bg);
+      color: var(--low);
+      background: var(--low-bg);
       border: 1px solid rgba(16, 185, 129, 0.3);
       padding: 0.25rem 0.65rem;
       border-radius: 9999px;
@@ -112,7 +118,7 @@ HTML_PAGE = """<!DOCTYPE html>
     .pulse {
       width: 7px;
       height: 7px;
-      background-color: var(--safe);
+      background-color: var(--low);
       border-radius: 50%;
       animation: pulse 1.8s infinite;
     }
@@ -125,7 +131,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
     main {
       flex: 1;
-      max-width: 1200px;
+      max-width: 1250px;
       width: 100%;
       margin: 0 auto;
       padding: 2rem;
@@ -280,8 +286,8 @@ HTML_PAGE = """<!DOCTYPE html>
     /* Results section */
     .metrics {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.85rem;
       margin-bottom: 1.5rem;
     }
 
@@ -289,20 +295,20 @@ HTML_PAGE = """<!DOCTYPE html>
       background: var(--bg-surface-elevated);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 1.25rem;
+      padding: 1.1rem;
     }
 
     .metric-title {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.35rem;
     }
 
     .metric-value {
-      font-size: 1.8rem;
+      font-size: 1.7rem;
       font-weight: 800;
       font-family: 'JetBrains Mono', monospace;
     }
@@ -310,17 +316,72 @@ HTML_PAGE = """<!DOCTYPE html>
     .metric-critical { color: var(--critical); }
     .metric-high { color: var(--high); }
     .metric-medium { color: var(--medium); }
+    .metric-low { color: var(--low); }
     .metric-total { color: var(--text-main); }
+
+    .view-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .view-toggle {
+      display: flex;
+      gap: 0.3rem;
+      background: var(--bg-surface-elevated);
+      padding: 0.25rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .toggle-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.35rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-export {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-export:hover {
+      border-color: var(--accent);
+    }
 
     .results-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 1rem;
+      margin-top: 0.5rem;
     }
 
     .results-table th {
       text-align: left;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--text-muted);
       padding: 0.8rem 1rem;
@@ -332,8 +393,8 @@ HTML_PAGE = """<!DOCTYPE html>
     .results-table td {
       padding: 1rem;
       border-bottom: 1px solid rgba(35, 48, 68, 0.5);
-      font-size: 0.9rem;
-      vertical-align: middle;
+      font-size: 0.88rem;
+      vertical-align: top;
     }
 
     .severity-badge {
@@ -349,10 +410,34 @@ HTML_PAGE = """<!DOCTYPE html>
     .badge-Critical { background: var(--critical-bg); color: var(--critical); border: 1px solid rgba(239,68,68,0.3); }
     .badge-High { background: var(--high-bg); color: var(--high); border: 1px solid rgba(249,115,22,0.3); }
     .badge-Medium { background: var(--medium-bg); color: var(--medium); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-Low { background: var(--low-bg); color: var(--low); border: 1px solid rgba(16,185,129,0.3); }
+
+    .confidence-tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #93C5FD;
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      margin-top: 0.35rem;
+    }
+
+    .context-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+    }
 
     .secret-box {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       background: var(--bg-base);
       border: 1px solid var(--border);
       padding: 0.35rem 0.65rem;
@@ -360,6 +445,9 @@ HTML_PAGE = """<!DOCTYPE html>
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .btn-toggle-mask {
@@ -381,29 +469,17 @@ HTML_PAGE = """<!DOCTYPE html>
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.82rem;
       color: #CBD5E1;
-      max-width: 400px;
+      max-width: 380px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .empty-state {
-      text-align: center;
-      padding: 3rem 1rem;
-      color: var(--text-muted);
-    }
-
-    .empty-icon {
-      font-size: 3rem;
-      margin-bottom: 0.75rem;
-      display: inline-block;
-    }
-
     .safe-state {
       text-align: center;
       padding: 2.5rem 1rem;
-      color: var(--safe);
-      background: var(--safe-bg);
+      color: var(--low);
+      background: var(--low-bg);
       border: 1px dashed rgba(16, 185, 129, 0.4);
       border-radius: var(--radius);
       margin-top: 1rem;
@@ -416,7 +492,8 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="brand">
       <div class="brand-icon">🛡️</div>
       <div>
-        <h1>Credential & Secret Leak Detector</h1>
+        <h1>Credential & Secret Leak Detector <span style="font-size:0.75rem; color:var(--accent);">v2.0</span></h1>
+        <div class="brand-sub">Evidence-based severity &bull; Context classification &bull; Cross-file deduplication</div>
       </div>
     </div>
     <div class="badge-status">
@@ -429,12 +506,12 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="card">
       <div class="tabs">
         <button class="tab-btn active" id="tab-paste-btn" onclick="switchTab('paste')">✏️ Paste Content</button>
-        <button class="tab-btn" id="tab-file-btn" onclick="switchTab('file')">📁 Upload File</button>
+        <button class="tab-btn" id="tab-file-btn" onclick="switchTab('file')">📁 Upload File or .ZIP Archive</button>
       </div>
 
       <!-- Paste Tab -->
       <div id="tab-paste">
-        <textarea id="scan-input" placeholder="Paste your AI conversation logs, .env files, code, or config here..."></textarea>
+        <textarea id="scan-input" placeholder="Paste your AI conversation logs, .env files, code, or configuration here..."></textarea>
       </div>
 
       <!-- File Tab -->
@@ -442,7 +519,7 @@ HTML_PAGE = """<!DOCTYPE html>
         <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
           <span class="dropzone-icon">📥</span>
           <p><strong>Click to browse</strong> or drag & drop any file or <strong>.zip archive</strong> here</p>
-          <p style="font-size: 0.8rem; margin-top: 0.4rem;">Supports .zip codebases/exports, .env, .txt, .json, .log, .py, .js, .yaml, and more</p>
+          <p style="font-size: 0.8rem; margin-top: 0.4rem;">Supports .zip repos, .env, .txt, .json, .log, .py, .js, .yaml, .toml, .properties, Dockerfiles</p>
           <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)">
         </div>
         <div id="file-info" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--accent); display: none;"></div>
@@ -454,7 +531,7 @@ HTML_PAGE = """<!DOCTYPE html>
           <span style="font-size: 0.82rem; color: var(--text-muted);">Try a Test Sample:</span>
           <button class="sample-chip" onclick="loadSample('chat')">🤖 AI Chat Leak</button>
           <button class="sample-chip" onclick="loadSample('env')">⚙️ .env File</button>
-          <button class="sample-chip" onclick="loadSample('safe')">🛡️ Safe Code</button>
+          <button class="sample-chip" onclick="loadSample('safe')">🛡️ Safe Placeholder Code</button>
         </div>
         <button class="btn-scan" onclick="runScan()">
           <span>🔍</span> Scan for Leaks
@@ -466,20 +543,39 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="card" id="results-card" style="display: none;">
       <div class="metrics">
         <div class="metric-card">
-          <div class="metric-title">Total Leaks</div>
+          <div class="metric-title">Total Findings</div>
           <div class="metric-value metric-total" id="count-total">0</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">Critical Severity</div>
+          <div class="metric-title">Unique Secrets</div>
+          <div class="metric-value metric-total" id="count-unique">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Critical</div>
           <div class="metric-value metric-critical" id="count-critical">0</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">High Severity</div>
+          <div class="metric-title">High</div>
           <div class="metric-value metric-high" id="count-high">0</div>
         </div>
         <div class="metric-card">
-          <div class="metric-title">Medium Severity</div>
+          <div class="metric-title">Medium</div>
           <div class="metric-value metric-medium" id="count-medium">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Low / Info</div>
+          <div class="metric-value metric-low" id="count-low">0</div>
+        </div>
+      </div>
+
+      <div class="view-toolbar">
+        <div class="view-toggle">
+          <button class="toggle-btn active" id="btn-view-grouped" onclick="setViewMode('grouped')">📦 Group by Secret (Duplicates Merged)</button>
+          <button class="toggle-btn" id="btn-view-flat" onclick="setViewMode('flat')">📋 All Occurrences</button>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn-export" onclick="exportReport('json')">💾 Export JSON</button>
+          <button class="btn-export" onclick="exportReport('txt')">📄 Export TXT</button>
         </div>
       </div>
 
@@ -493,6 +589,8 @@ HTML_PAGE = """<!DOCTYPE html>
     let currentFileName = 'Pasted Text';
     let isZip = false;
     let latestFindings = [];
+    let latestGrouped = [];
+    let currentViewMode = 'grouped';
 
     const SAMPLES = {
       chat: `User: hey can you help me fix my connection?
@@ -543,7 +641,7 @@ function login() {
       if (isZip) {
         reader.onload = (e) => {
           const dataUrl = e.target.result;
-          fileContent = dataUrl.split(',')[1]; // extract raw base64
+          fileContent = dataUrl.split(',')[1];
           document.getElementById('file-info').innerHTML = '📦 Selected ZIP Archive: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB) &mdash; <span style="color:#10B981; font-weight:600;">Will extract & scan all files inside archive</span>';
           document.getElementById('file-info').style.display = 'block';
         };
@@ -596,7 +694,9 @@ function login() {
           })
         });
         const data = await resp.json();
-        renderResults(data.findings);
+        latestFindings = data.findings || [];
+        latestGrouped = data.grouped || [];
+        renderDashboard();
       } catch (err) {
         alert('Scan error: ' + err.message);
       } finally {
@@ -605,26 +705,39 @@ function login() {
       }
     }
 
-    function renderResults(findings) {
-      latestFindings = findings;
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      document.getElementById('btn-view-grouped').className = 'toggle-btn' + (mode === 'grouped' ? ' active' : '');
+      document.getElementById('btn-view-flat').className = 'toggle-btn' + (mode === 'flat' ? ' active' : '');
+      renderResultsTable();
+    }
+
+    function renderDashboard() {
       const card = document.getElementById('results-card');
       card.style.display = 'block';
 
-      let critical = 0, high = 0, medium = 0;
-      findings.forEach(f => {
+      let critical = 0, high = 0, medium = 0, low = 0;
+      latestFindings.forEach(f => {
         if (f.severity === 'Critical') critical++;
         else if (f.severity === 'High') high++;
         else if (f.severity === 'Medium') medium++;
+        else low++;
       });
 
-      document.getElementById('count-total').innerText = findings.length;
+      document.getElementById('count-total').innerText = latestFindings.length;
+      document.getElementById('count-unique').innerText = latestGrouped.length;
       document.getElementById('count-critical').innerText = critical;
       document.getElementById('count-high').innerText = high;
       document.getElementById('count-medium').innerText = medium;
+      document.getElementById('count-low').innerText = low;
 
+      renderResultsTable();
+    }
+
+    function renderResultsTable() {
       const body = document.getElementById('results-body');
 
-      if (findings.length === 0) {
+      if (latestFindings.length === 0) {
         body.innerHTML = `
           <div class="safe-state">
             <h3>✅ No Leaked Credentials Detected</h3>
@@ -636,47 +749,121 @@ function login() {
         return;
       }
 
-      let html = `
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>Severity</th>
-              <th>Detection Rule</th>
-              <th>Line</th>
-              <th>Detected Secret</th>
-              <th>Snippet</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
-
-      findings.forEach((f, idx) => {
-        html += `
-          <tr>
-            <td><span class="severity-badge badge-${f.severity}">${f.severity}</span></td>
-            <td>
-              <strong>${f.label}</strong>
-              <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">${f.category}</div>
-            </td>
-            <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">:${f.line}</td>
-            <td>
-              <span class="secret-box">
-                <span id="secret-val-${idx}">${f.redacted_secret}</span>
-                <button class="btn-toggle-mask" onclick="toggleSecret(${idx})" title="Toggle Reveal">👁️</button>
-              </span>
-            </td>
-            <td><div class="code-snippet" title="${f.snippet.replace(/"/g, '&quot;')}">${f.snippet}</div></td>
-          </tr>
+      if (currentViewMode === 'grouped') {
+        let html = `
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Confidence</th>
+                <th>Detection Rule</th>
+                <th>Masked Secret</th>
+                <th>Occurrences Across Files</th>
+              </tr>
+            </thead>
+            <tbody>
         `;
-      });
 
-      html += '</tbody></table>';
-      body.innerHTML = html;
+        latestGrouped.forEach((g, idx) => {
+          const occHtml = g.occurrences.map(o => `
+            <div style="margin-bottom:0.4rem;">
+              <span class="context-tag">${o.context_type}</span>
+              <strong style="color:#CBD5E1; font-family:'JetBrains Mono',monospace; font-size:0.83rem;">${o.source}:${o.line}</strong>
+              <div class="code-snippet">${o.snippet}</div>
+            </div>
+          `).join('');
+
+          html += `
+            <tr>
+              <td><span class="severity-badge badge-${g.severity}">${g.severity}</span></td>
+              <td>
+                <span class="confidence-tag">${g.confidence} Confidence</span>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.3rem;">${g.confidence_reason}</div>
+              </td>
+              <td>
+                <strong>${g.label}</strong>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${g.category}</div>
+                <div style="font-size:0.72rem; color:#94A3B8; margin-top:0.3rem; max-width:250px;">${g.evidence}</div>
+              </td>
+              <td>
+                <span class="secret-box">
+                  <span id="secret-grp-${idx}">${g.redacted_secret}</span>
+                  <button class="btn-toggle-mask" onclick="toggleSecretGroup(${idx})" title="Toggle Reveal">👁️</button>
+                </span>
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.25rem;">Entropy: ${g.entropy}</div>
+              </td>
+              <td>${occHtml}</td>
+            </tr>
+          `;
+        });
+
+        html += '</tbody></table>';
+        body.innerHTML = html;
+
+      } else {
+        // Flat view
+        let html = `
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Confidence</th>
+                <th>Detection Rule</th>
+                <th>Location & Context</th>
+                <th>Masked Secret</th>
+                <th>Snippet</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        latestFindings.forEach((f, idx) => {
+          html += `
+            <tr>
+              <td><span class="severity-badge badge-${f.severity}">${f.severity}</span></td>
+              <td>
+                <span class="confidence-tag">${f.confidence}</span>
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">${f.confidence_reason}</div>
+              </td>
+              <td>
+                <strong>${f.label}</strong>
+                <div style="font-size:0.75rem; color:var(--text-muted);">${f.category}</div>
+              </td>
+              <td>
+                <span class="context-tag">${f.context_type}</span>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:0.83rem; margin-top:3px;">${f.source}:${f.line}</div>
+              </td>
+              <td>
+                <span class="secret-box">
+                  <span id="secret-flat-${idx}">${f.redacted_secret}</span>
+                  <button class="btn-toggle-mask" onclick="toggleSecretFlat(${idx})" title="Toggle Reveal">👁️</button>
+                </span>
+              </td>
+              <td><div class="code-snippet" title="${f.snippet.replace(/"/g, '&quot;')}">${f.snippet}</div></td>
+            </tr>
+          `;
+        });
+
+        html += '</tbody></table>';
+        body.innerHTML = html;
+      }
     }
 
-    function toggleSecret(idx) {
+    function toggleSecretGroup(idx) {
+      const g = latestGrouped[idx];
+      const el = document.getElementById('secret-grp-' + idx);
+      if (el.innerText === g.redacted_secret) {
+        el.innerText = g.raw_secret;
+        el.style.color = '#EF4444';
+      } else {
+        el.innerText = g.redacted_secret;
+        el.style.color = 'inherit';
+      }
+    }
+
+    function toggleSecretFlat(idx) {
       const f = latestFindings[idx];
-      const el = document.getElementById('secret-val-' + idx);
+      const el = document.getElementById('secret-flat-' + idx);
       if (el.innerText === f.redacted_secret) {
         el.innerText = f.raw_secret;
         el.style.color = '#EF4444';
@@ -684,6 +871,54 @@ function login() {
         el.innerText = f.redacted_secret;
         el.style.color = 'inherit';
       }
+    }
+
+    function exportReport(format) {
+      if (latestFindings.length === 0) {
+        alert('No findings to export.');
+        return;
+      }
+      let content = '', filename = '', mime = '';
+      if (format === 'json') {
+        content = JSON.stringify({ findings: latestFindings, grouped: latestGrouped }, null, 2);
+        filename = 'credential_audit_report.json';
+        mime = 'application/json';
+      } else {
+        let lines = [
+          '===========================================================================',
+          ' CREDENTIAL & SECRET AUDIT REPORT',
+          '===========================================================================',
+          ` Total Findings: ${latestFindings.length} | Unique Secrets: ${latestGrouped.length}`,
+          '===========================================================================',
+          ''
+        ];
+        latestGrouped.forEach((g, i) => {
+          lines.push(`[${i+1}] ${g.label} (${g.category})`);
+          lines.push(`    Severity: ${g.severity} | Confidence: ${g.confidence}`);
+          lines.push(`    Reason: ${g.confidence_reason}`);
+          lines.push(`    Evidence: ${g.evidence}`);
+          lines.push(`    Secret: ${g.redacted_secret} (Entropy: ${g.entropy})`);
+          lines.push(`    Occurrences (${g.occurrences.length}):`);
+          g.occurrences.forEach(o => {
+            lines.push(`      - ${o.source}:${o.line} [${o.context_type}]`);
+            lines.push(`        Snippet: ${o.snippet}`);
+          });
+          lines.push('---------------------------------------------------------------------------');
+        });
+        content = lines.join('\\n');
+        filename = 'credential_audit_report.txt';
+        mime = 'text/plain';
+      }
+
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   </script>
 </body>
@@ -720,7 +955,14 @@ class LeakScanHandler(BaseHTTPRequestHandler):
                 else:
                     findings = scan_text(content, source_name=source)
 
-                response = {"status": "success", "count": len(findings), "findings": findings}
+                grouped = group_findings_by_secret(findings)
+                response = {
+                    "status": "success",
+                    "total_findings": len(findings),
+                    "unique_secrets": len(grouped),
+                    "findings": findings,
+                    "grouped": grouped,
+                }
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.end_headers()
@@ -745,7 +987,7 @@ def main():
     url = f"http://127.0.0.1:{PORT}"
     print()
     print("=" * 65)
-    print(" [*] Credential & Secret Leak Detector GUI")
+    print(" [*] Credential & Secret Leak Detector GUI v2.0")
     print("=" * 65)
     print(f"  URL: {url}")
     print("  Status: Running locally on your machine (zero external calls)")

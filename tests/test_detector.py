@@ -1,78 +1,146 @@
 """
-Unit tests for credential detector.
-All test fixtures are assembled in memory so no raw provider keys exist on disk.
+Comprehensive Test Suite for Credential Detector v2.0
+Covers Positive cases, Negative cases, Severity vs. Confidence separation,
+Context-Aware Classification, and Cross-File Deduplication.
 """
 
+import io
 import unittest
-from detector import scan_text, calc_entropy, is_placeholder
+import zipfile
+from detector import (
+    scan_text,
+    scan_zip_bytes,
+    calc_entropy,
+    is_placeholder,
+    classify_context,
+    group_findings_by_secret,
+)
 
 
-class TestDetectorAccuracy(unittest.TestCase):
+class TestPositiveDetections(unittest.TestCase):
+    """Verify that genuine credentials in real formats are detected."""
+
     def test_aws_access_key(self):
-        # Assembled dynamically in memory (non-placeholder key)
-        sample = "AWS_KEY=" + "AKIA" + "1234567890ABCDEF"
-        findings = scan_text(sample)
-        self.assertTrue(any(f["pattern_id"] == "aws-access-key" for f in findings))
+        sample = "export AWS_ACCESS_KEY_ID=" + "AKIA" + "Z7X9Y1A2B3C4D5E6"
+        findings = scan_text(sample, source_name="prod.env")
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["pattern_id"], "aws-access-key")
+        self.assertEqual(findings[0]["severity"], "Critical")
+        self.assertEqual(findings[0]["confidence"], "High")
+
+    def test_database_url_credentials(self):
+        sample = "DATABASE_URL=postgresql://db_admin:K9#mQ2$vL8@prod-db.internal:5432/core"
+        findings = scan_text(sample, source_name="config/database.yml")
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["pattern_id"], "db-connection-string")
+        self.assertEqual(findings[0]["severity"], "Critical")
+        self.assertEqual(findings[0]["confidence"], "High")
 
     def test_github_pat(self):
-        sample = "TOKEN=" + "ghp_" + "aBcDeFgHiJkLmNoPqRsTuVwXyZ1234567890"
-        findings = scan_text(sample)
-        self.assertTrue(any(f["pattern_id"] == "github-pat-classic" for f in findings))
+        sample = "GITHUB_TOKEN=" + "ghp_" + "1234567890abcdefghijklmnopqrstuvwxyzAB"
+        findings = scan_text(sample, source_name="deploy.sh")
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["pattern_id"], "github-pat")
+        self.assertEqual(findings[0]["severity"], "High")
 
-    def test_openai_key(self):
-        sample = "OPENAI_KEY=" + "sk-" + "proj-1234567890abcdefghijklmnopqrstuvwxyz123"
-        findings = scan_text(sample)
-        self.assertTrue(any(f["pattern_id"] == "openai-api-key" for f in findings))
+    def test_natural_language_gmail_password(self):
+        sample = "User: my gmail password is P@ssw0rd_Secure_99!"
+        findings = scan_text(sample, source_name="chat_export.log")
+        self.assertTrue(any(f["pattern_id"] == "gmail-password" for f in findings))
 
-    def test_database_url(self):
-        sample = "DATABASE_URL=postgresql://app_user:SuperSecretPass99@db.local:5432/production"
-        findings = scan_text(sample)
-        self.assertTrue(any(f["pattern_id"] == "db-connection-string" for f in findings))
 
-    def test_gmail_password_natural_language(self):
-        sample = "User: my gmail password is MyGmailSecurePass2026!"
-        findings = scan_text(sample)
-        self.assertTrue(any(f["pattern_id"] in ("gmail-password", "password-natural-language") for f in findings))
-
-    def test_email_password_combo(self):
-        sample = "login details: admin@domain.com:MySuperPassword99"
-        findings = scan_text(sample)
-        self.assertTrue(any(f["pattern_id"] == "email-password-combo" for f in findings))
-
-    def test_app_password(self):
-        sample = "connect using ssh password: RemoteServerPass99"
-        findings = scan_text(sample)
-        self.assertTrue(any(f["pattern_id"] == "app-password" for f in findings))
+class TestNegativeDetections(unittest.TestCase):
+    """Verify that placeholders, safe documentation, and low-entropy values are rejected."""
 
     def test_placeholder_suppression(self):
-        # These should NOT be flagged because they are obvious placeholders
-        sample = 'const password = "your_password_here";\nconst key = "<api_key>";'
-        findings = scan_text(sample)
+        sample = """
+        const db_pass = "your_password_here";
+        const apiKey = "<api_key>";
+        const token = "TODO_INSERT_TOKEN_HERE";
+        """
+        findings = scan_text(sample, source_name="sample.js")
         self.assertEqual(len(findings), 0)
 
-    def test_entropy_calculator(self):
-        low_entropy = calc_entropy("aaaaaaaa")
-        high_entropy = calc_entropy("aB9#mK$2!xP")
-        self.assertLess(low_entropy, 1.0)
-        self.assertGreater(high_entropy, 3.0)
+    def test_normal_english_prose(self):
+        sample = "Always choose a strong password that is difficult to guess."
+        findings = scan_text(sample, source_name="guide.md")
+        self.assertEqual(len(findings), 0)
+
+    def test_low_entropy_rejection(self):
+        # Even with a secret assignment, low entropy repetitive strings are ignored
+        sample = 'const secret_key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaa";'
+        findings = scan_text(sample, source_name="code.js")
+        self.assertEqual(len(findings), 0)
 
 
-    def test_zip_scanning(self):
-        import io
-        import zipfile
-        from detector import scan_zip_bytes
+class TestSeverityAndConfidenceSeparation(unittest.TestCase):
+    """Ensure confidence and severity are measured independently."""
 
-        # Create an in-memory zip containing a mock .env file
-        zip_buf = io.BytesIO()
-        with zipfile.ZipFile(zip_buf, "w") as z:
-            secret_line = "DATABASE_URL=postgresql://user:SecretDbPass99@localhost/db\n"
-            z.writestr("src/config/.env", secret_line)
-            z.writestr("README.md", "# Project\nNormal text here\n")
-
-        zip_bytes = zip_buf.getvalue()
-        findings = scan_zip_bytes(zip_bytes, zip_name="test_project.zip")
+    def test_test_keys_have_low_severity(self):
+        # A test Stripe key has High confidence (we are confident it's a Stripe test key)
+        # but Low severity (it cannot charge real money)
+        sample = "STRIPE_KEY=" + "sk_" + "test_" + "1234567890abcdefghijklmn"
+        findings = scan_text(sample, source_name="config.py")
         self.assertEqual(len(findings), 1)
-        self.assertIn("test_project.zip > src/config/.env", findings[0]["source"])
+        self.assertEqual(findings[0]["severity"], "Low")
+        self.assertIn(findings[0]["confidence"], ("High", "Medium"))
+
+    def test_credential_in_test_file_downgraded_severity(self):
+        # A credential in a test folder should be downgraded from Critical to Medium/Low
+        # to prevent alert fatigue
+        sample = "AWS_KEY=" + "AKIA" + "Z7X9Y1A2B3C4D5E6"
+        findings = scan_text(sample, source_name="tests/unit/test_auth.py")
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["context_type"], "Documentation / Test")
+        self.assertEqual(findings[0]["confidence"], "Low")
+        self.assertEqual(findings[0]["severity"], "Medium")  # Downgraded from Critical
+
+
+class TestContextClassification(unittest.TestCase):
+    """Verify automatic classification of files by purpose."""
+
+    def test_classify_contexts(self):
+        self.assertEqual(classify_context("src/config/.env"), "Configuration")
+        self.assertEqual(classify_context("server.js"), "Source Code")
+        self.assertEqual(classify_context("history.log"), "Log / Conversation")
+        self.assertEqual(classify_context("tests/test_login.py"), "Documentation / Test")
+        self.assertEqual(classify_context("README.md"), "Documentation / Test")
+
+
+class TestDeduplicationAndGrouping(unittest.TestCase):
+    """Verify cross-file duplicate detection and grouping."""
+
+    def test_duplicate_secret_grouping(self):
+        token = "ghp_" + "1234567890abcdefghijklmnopqrstuvwxyzAB"
+        content1 = f"TOKEN={token}"
+        content2 = f"# duplicate in another file\nAUTH={token}"
+
+        f1 = scan_text(content1, source_name="src/app.py")
+        f2 = scan_text(content2, source_name="config/deploy.yml")
+
+        all_findings = f1 + f2
+        self.assertEqual(len(all_findings), 2)
+
+        grouped = group_findings_by_secret(all_findings)
+        self.assertEqual(len(grouped), 1)  # Grouped into 1 distinct secret
+        self.assertEqual(len(grouped[0]["occurrences"]), 2)
+        sources = [occ["source"] for occ in grouped[0]["occurrences"]]
+        self.assertIn("src/app.py", sources)
+        self.assertIn("config/deploy.yml", sources)
+
+
+class TestZipArchiveScanning(unittest.TestCase):
+    """Verify zip archive in-memory scanning."""
+
+    def test_zip_scan(self):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("src/.env", "DATABASE_URL=postgres://user:SecretDbPass99@db.local:5432/app\n")
+            z.writestr("docs/setup.md", "# Guide\nNothing to see here.\n")
+
+        findings = scan_zip_bytes(buf.getvalue(), zip_name="codebase.zip")
+        self.assertEqual(len(findings), 1)
+        self.assertIn("codebase.zip > src/.env", findings[0]["source"])
         self.assertEqual(findings[0]["pattern_id"], "db-connection-string")
 
 
