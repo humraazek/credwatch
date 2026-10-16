@@ -669,6 +669,7 @@ HTML_PAGE = """<!DOCTYPE html>
     let activeTab = 'paste';
     let fileContent = '';
     let currentFileName = 'input';
+    let currentFileSizeKb = 0;
     let isZip = false;
     let latestFindings = [];
     let latestGrouped = [];
@@ -720,6 +721,7 @@ const sampleKey = "<api_key>";       // Placeholder`
       if (!file) return;
 
       currentFileName = file.name;
+      currentFileSizeKb = Math.round(file.size / 1024);
       isZip = file.name.toLowerCase().endsWith('.zip');
 
       const infoEl = document.getElementById('file-info');
@@ -740,21 +742,21 @@ const sampleKey = "<api_key>";       // Placeholder`
           const res = e.target.result;
           const commaIdx = res.indexOf(',');
           fileContent = commaIdx !== -1 ? res.substring(commaIdx + 1) : res;
-          infoEl.innerHTML = 'archive: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB) &mdash; <span style="color:#30D158;">analyzing archive...</span>';
+          infoEl.innerHTML = 'archive: <strong>' + escapeHtml(file.name) + '</strong> (' + currentFileSizeKb + ' KB) &mdash; <span style="color:#30D158;">analyzing archive...</span>';
           runScan();
         };
         reader.onerror = () => {
-          infoEl.innerText = 'error reading zip file';
+          infoEl.innerHTML = '<span style="color:#FF453A;">error reading zip file</span>';
         };
         reader.readAsDataURL(file);
       } else {
         reader.onload = (e) => {
           fileContent = e.target.result;
-          infoEl.innerHTML = 'file: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB) &mdash; <span style="color:#30D158;">analyzing file...</span>';
+          infoEl.innerHTML = 'file: <strong>' + escapeHtml(file.name) + '</strong> (' + currentFileSizeKb + ' KB) &mdash; <span style="color:#30D158;">analyzing file...</span>';
           runScan();
         };
         reader.onerror = () => {
-          infoEl.innerText = 'error reading file';
+          infoEl.innerHTML = '<span style="color:#FF453A;">error reading file</span>';
         };
         reader.readAsText(file);
       }
@@ -784,6 +786,12 @@ const sampleKey = "<api_key>";       // Placeholder`
       btn.innerText = 'Scanning...';
       btn.disabled = true;
 
+      const infoEl = document.getElementById('file-info');
+      if (isFileMode && infoEl && currentFileName && currentFileName !== 'input') {
+        const typeLabel = isZip ? 'archive' : 'file';
+        infoEl.innerHTML = typeLabel + ': <strong>' + escapeHtml(currentFileName) + '</strong> (' + currentFileSizeKb + ' KB) &mdash; <span style="color:#30D158;">analyzing ' + typeLabel + '...</span>';
+      }
+
       try {
         const resp = await fetch('/api/scan', {
           method: 'POST',
@@ -805,6 +813,10 @@ const sampleKey = "<api_key>";       // Placeholder`
         latestGrouped = data.grouped || [];
         renderDashboard();
       } catch (err) {
+        if (isFileMode && infoEl && currentFileName) {
+          const typeLabel = isZip ? 'archive' : 'file';
+          infoEl.innerHTML = typeLabel + ': <strong>' + escapeHtml(currentFileName) + '</strong> (' + currentFileSizeKb + ' KB) &mdash; <span style="color:#FF453A;">scan failed</span>';
+        }
         alert('Scan error: ' + err.message);
       } finally {
         btn.innerText = 'Scan Target';
@@ -849,6 +861,14 @@ const sampleKey = "<api_key>";       // Placeholder`
       } else {
         banner.className = 'status-banner clean';
         banner.innerHTML = `<span><span class="pulse-dot clean"></span><strong>Scan Complete</strong> &mdash; 0 findings detected. Target is clean.</span><span style="color:var(--text-tertiary);">${timeStr}</span>`;
+      }
+
+      const infoEl = document.getElementById('file-info');
+      if (activeTab === 'file' && infoEl && currentFileName && currentFileName !== 'input') {
+        const typeLabel = isZip ? 'archive' : 'file';
+        const count = latestFindings.length;
+        const countText = count === 0 ? 'clean (0 findings)' : (count + ' finding' + (count > 1 ? 's' : ''));
+        infoEl.innerHTML = typeLabel + ': <strong>' + escapeHtml(currentFileName) + '</strong> (' + currentFileSizeKb + ' KB) &mdash; <span style="color:var(--text-secondary);">scanned &bull; ' + countText + '</span>';
       }
 
       renderTable();
