@@ -558,12 +558,14 @@ def group_findings_by_secret(findings: List[Dict[str, Any]]) -> List[Dict[str, A
                 "entropy": f["entropy"],
                 "occurrences": [],
             }
-        grouped[fp]["occurrences"].append({
-            "source": f["source"],
-            "line": f["line"],
-            "context_type": f["context_type"],
-            "snippet": f["snippet"],
-        })
+        occ_key = (f["source"], f["line"])
+        if not any((occ["source"], occ["line"]) == occ_key for occ in grouped[fp]["occurrences"]):
+            grouped[fp]["occurrences"].append({
+                "source": f["source"],
+                "line": f["line"],
+                "context_type": f["context_type"],
+                "snippet": f["snippet"],
+            })
 
     return list(grouped.values())
 
