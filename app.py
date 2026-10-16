@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Credential Detector - Minimalist Black GUI (Mistral.ai aesthetic)
+Credential Detector - Minimalist Black & White GUI (Mistral style)
 Zero external dependencies - Uses Python standard library only.
 """
 
@@ -29,17 +29,16 @@ HTML_PAGE = """<!DOCTYPE html>
     :root {
       --bg-black: #000000;
       --bg-card: #0A0A0A;
-      --bg-card-hover: #111111;
-      --border-subtle: #1C1C1C;
-      --border-strong: #2E2E2E;
-      --text-primary: #EDEDED;
-      --text-secondary: #888888;
+      --bg-card-hover: #121212;
+      --border-subtle: #222222;
+      --border-strong: #333333;
+      --text-primary: #FFFFFF;
+      --text-secondary: #999999;
       --text-tertiary: #555555;
-      --mistral-orange: #FF5A00;
-      --mistral-orange-glow: rgba(255, 90, 0, 0.15);
-      --crit-red: #FF3B30;
-      --high-orange: #FF5A00;
-      --med-amber: #FFB340;
+      --accent-white: #FFFFFF;
+      --crit-red: #FF453A;
+      --high-orange: #FF9F0A;
+      --med-amber: #FFD60A;
       --low-green: #30D158;
       --font-sans: 'Geist', -apple-system, sans-serif;
       --font-mono: 'Geist Mono', monospace;
@@ -78,10 +77,10 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     .brand-mark {
-      width: 18px;
-      height: 18px;
-      background-color: var(--mistral-orange);
-      border-radius: 3px;
+      width: 16px;
+      height: 16px;
+      background-color: #FFFFFF;
+      border-radius: 2px;
       display: inline-block;
     }
 
@@ -164,7 +163,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
     .tab-btn.active {
       color: #FFFFFF;
-      border-bottom: 2px solid var(--mistral-orange);
+      border-bottom: 2px solid #FFFFFF;
     }
 
     textarea {
@@ -197,7 +196,7 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     .dropzone:hover, .dropzone.dragover {
-      border-color: var(--mistral-orange);
+      border-color: #FFFFFF;
     }
 
     .dropzone p {
@@ -258,10 +257,10 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     .btn-run {
-      background: var(--mistral-orange);
+      background: #FFFFFF;
       color: #000000;
       border: none;
-      border-radius: 5px;
+      border-radius: 4px;
       padding: 0.55rem 1.4rem;
       font-family: var(--font-sans);
       font-size: 0.82rem;
@@ -270,11 +269,12 @@ HTML_PAGE = """<!DOCTYPE html>
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      transition: opacity 0.15s;
+      transition: opacity 0.15s, background-color 0.15s;
     }
 
     .btn-run:hover {
       opacity: 0.9;
+      background-color: #EDEDED;
     }
 
     /* Results section */
@@ -479,12 +479,12 @@ HTML_PAGE = """<!DOCTYPE html>
 
       <!-- File Tab -->
       <div id="tab-file" style="display: none;">
-        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+        <div class="dropzone" id="dropzone" onclick="triggerFileInput()">
           <p><strong>Click to browse</strong> or drag and drop a file</p>
           <div class="sub-drop">Supports .zip archives, .env, .json, .log, .py, .js, .yaml, .toml, Dockerfiles</div>
-          <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)">
         </div>
-        <div id="file-info" style="margin-top: 0.6rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--mistral-orange); display: none;"></div>
+        <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)">
+        <div id="file-info" style="margin-top: 0.6rem; font-family: var(--font-mono); font-size: 0.75rem; color: #FFFFFF; display: none;"></div>
       </div>
 
       <!-- Actions -->
@@ -587,25 +587,45 @@ const sampleKey = "<api_key>";       // Placeholder`
       runScan();
     }
 
+    function triggerFileInput() {
+      const fi = document.getElementById('file-input');
+      fi.value = '';
+      fi.click();
+    }
+
     function handleFileSelect(evt) {
-      const file = evt.target.files[0];
+      const file = evt.target.files ? evt.target.files[0] : null;
       if (!file) return;
+
       currentFileName = file.name;
       isZip = file.name.toLowerCase().endsWith('.zip');
+
+      const infoEl = document.getElementById('file-info');
+      infoEl.style.display = 'block';
+      infoEl.innerText = 'reading ' + file.name + '...';
+
       const reader = new FileReader();
 
       if (isZip) {
         reader.onload = (e) => {
-          fileContent = e.target.result.split(',')[1];
-          document.getElementById('file-info').innerText = 'archive: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB) [in-memory scan ready]';
-          document.getElementById('file-info').style.display = 'block';
+          const res = e.target.result;
+          const commaIdx = res.indexOf(',');
+          fileContent = commaIdx !== -1 ? res.substring(commaIdx + 1) : res;
+          infoEl.innerHTML = 'archive: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB) &mdash; <span style="color:#30D158;">analyzing archive...</span>';
+          runScan();
+        };
+        reader.onerror = () => {
+          infoEl.innerText = 'error reading zip file';
         };
         reader.readAsDataURL(file);
       } else {
         reader.onload = (e) => {
           fileContent = e.target.result;
-          document.getElementById('file-info').innerText = 'file: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
-          document.getElementById('file-info').style.display = 'block';
+          infoEl.innerHTML = 'file: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB) &mdash; <span style="color:#30D158;">analyzing file...</span>';
+          runScan();
+        };
+        reader.onerror = () => {
+          infoEl.innerText = 'error reading file';
         };
         reader.readAsText(file);
       }
@@ -617,18 +637,17 @@ const sampleKey = "<api_key>";       // Placeholder`
     dropzone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropzone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
         handleFileSelect({ target: { files: e.dataTransfer.files } });
       }
     });
 
     async function runScan() {
-      const content = activeTab === 'paste' 
-        ? document.getElementById('scan-input').value 
-        : fileContent;
+      const isFileMode = (activeTab === 'file');
+      const content = isFileMode ? fileContent : document.getElementById('scan-input').value;
 
       if (!content || !content.trim()) {
-        alert('Please enter text or select a file.');
+        alert(isFileMode ? 'Please select or drop a file first.' : 'Please enter text to scan.');
         return;
       }
 
@@ -643,9 +662,15 @@ const sampleKey = "<api_key>";       // Placeholder`
           body: JSON.stringify({ 
             content: content, 
             source: currentFileName,
-            is_zip: (activeTab === 'file' && isZip)
+            is_zip: (isFileMode && isZip)
           })
         });
+
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({ error: 'Server error ' + resp.status }));
+          throw new Error(errData.error || ('Server returned HTTP ' + resp.status));
+        }
+
         const data = await resp.json();
         latestFindings = data.findings || [];
         latestGrouped = data.grouped || [];
@@ -796,10 +821,12 @@ const sampleKey = "<api_key>";       // Placeholder`
       const el = document.getElementById('grp-' + idx);
       if (el.innerText === g.redacted_secret) {
         el.innerText = g.raw_secret;
-        el.style.color = 'var(--mistral-orange)';
+        el.style.color = '#FFFFFF';
+        el.style.fontWeight = 'bold';
       } else {
         el.innerText = g.redacted_secret;
         el.style.color = 'inherit';
+        el.style.fontWeight = 'normal';
       }
     }
 
@@ -808,10 +835,12 @@ const sampleKey = "<api_key>";       // Placeholder`
       const el = document.getElementById('flt-' + idx);
       if (el.innerText === f.redacted_secret) {
         el.innerText = f.raw_secret;
-        el.style.color = 'var(--mistral-orange)';
+        el.style.color = '#FFFFFF';
+        el.style.fontWeight = 'bold';
       } else {
         el.innerText = f.redacted_secret;
         el.style.color = 'inherit';
+        el.style.fontWeight = 'normal';
       }
     }
 
@@ -861,10 +890,12 @@ class LeakScanHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         if url.path in ("/", "/index.html"):
+            resp_bytes = HTML_PAGE.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(resp_bytes)))
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            self.wfile.write(resp_bytes)
         else:
             self.send_response(404)
             self.end_headers()
@@ -872,9 +903,10 @@ class LeakScanHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         url = urlparse(self.path)
         if url.path == "/api/scan":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length).decode("utf-8")
             try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                raw_body = self.rfile.read(content_length)
+                body = raw_body.decode("utf-8", errors="replace")
                 data = json.loads(body)
                 content = data.get("content", "")
                 source = data.get("source", "input")
@@ -894,15 +926,19 @@ class LeakScanHandler(BaseHTTPRequestHandler):
                     "findings": findings,
                     "grouped": grouped,
                 }
+                resp_bytes = json.dumps(response).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(resp_bytes)))
                 self.end_headers()
-                self.wfile.write(json.dumps(response).encode("utf-8"))
+                self.wfile.write(resp_bytes)
             except Exception as e:
+                err_bytes = json.dumps({"error": str(e)}).encode("utf-8")
                 self.send_response(500)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(err_bytes)))
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                self.wfile.write(err_bytes)
         else:
             self.send_response(404)
             self.end_headers()
