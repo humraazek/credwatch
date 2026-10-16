@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Credential Detector - Minimalist Black & White GUI (Mistral style)
+CredWatch - Minimalist Black & White GUI (Mistral style)
 Zero external dependencies - Uses Python standard library only.
 """
 
@@ -21,7 +21,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Credential Detector</title>
+  <title>CredWatch</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -47,6 +47,11 @@ HTML_PAGE = """<!DOCTYPE html>
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
     body {
       background-color: var(--bg-black);
       color: var(--text-primary);
@@ -68,6 +73,8 @@ HTML_PAGE = """<!DOCTYPE html>
       position: sticky;
       top: 0;
       z-index: 50;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .brand {
@@ -92,31 +99,6 @@ HTML_PAGE = """<!DOCTYPE html>
       color: #FFFFFF;
     }
 
-    .brand-version {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--text-tertiary);
-      border: 1px solid var(--border-subtle);
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
-    }
-
-    .status-dot {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-    }
-
-    .dot {
-      width: 6px;
-      height: 6px;
-      background-color: var(--low-green);
-      border-radius: 50%;
-    }
-
     main {
       flex: 1;
       max-width: 1100px;
@@ -126,6 +108,8 @@ HTML_PAGE = """<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+      min-width: 0;
+      box-sizing: border-box;
     }
 
     .panel {
@@ -133,6 +117,11 @@ HTML_PAGE = """<!DOCTYPE html>
       border: 1px solid var(--border-subtle);
       border-radius: 8px;
       padding: 1.5rem;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .tabs {
@@ -178,6 +167,10 @@ HTML_PAGE = """<!DOCTYPE html>
       padding: 0.85rem;
       resize: vertical;
       line-height: 1.6;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      box-sizing: border-box;
     }
 
     textarea:focus {
@@ -278,6 +271,50 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     /* Results section */
+    .status-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 0.95rem;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      margin-bottom: 1.25rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-black);
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .status-banner.has-findings {
+      border-color: #333333;
+      color: #FFFFFF;
+    }
+
+    .status-banner.clean {
+      border-color: #222222;
+      color: #A0AEC0;
+    }
+
+    .pulse-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+
+    .pulse-dot.alert {
+      background-color: var(--crit-red);
+      box-shadow: 0 0 6px rgba(255, 69, 58, 0.6);
+    }
+
+    .pulse-dot.clean {
+      background-color: var(--low-green);
+      box-shadow: 0 0 6px rgba(48, 209, 88, 0.4);
+    }
+
     .summary-strip {
       display: flex;
       gap: 2rem;
@@ -362,10 +399,20 @@ HTML_PAGE = """<!DOCTYPE html>
       border-color: var(--border-strong);
     }
 
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      background: var(--bg-black);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.82rem;
+      table-layout: auto;
     }
 
     th {
@@ -375,14 +422,17 @@ HTML_PAGE = """<!DOCTYPE html>
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-tertiary);
-      padding: 0.6rem 0.8rem;
+      padding: 0.65rem 0.85rem;
       border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
     }
 
     td {
-      padding: 0.9rem 0.8rem;
+      padding: 0.85rem 0.85rem;
       border-bottom: 1px solid var(--border-subtle);
       vertical-align: top;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .tag-severity {
@@ -391,6 +441,7 @@ HTML_PAGE = """<!DOCTYPE html>
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
+      white-space: nowrap;
     }
 
     .sev-Critical { color: var(--crit-red); }
@@ -405,18 +456,64 @@ HTML_PAGE = """<!DOCTYPE html>
       border: 1px solid var(--border-subtle);
       padding: 0.05rem 0.35rem;
       border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 0.2rem;
+    }
+
+    .rule-title {
+      font-weight: 500;
+      color: #FFFFFF;
+      max-width: 190px;
+      line-height: 1.35;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .conf-reason {
+      font-size: 0.68rem;
+      color: var(--text-tertiary);
+      max-width: 190px;
+      line-height: 1.35;
+      margin-top: 2px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .secret-pill {
       font-family: var(--font-mono);
-      font-size: 0.78rem;
-      background: var(--bg-black);
+      font-size: 0.75rem;
+      background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       padding: 0.25rem 0.55rem;
       border-radius: 4px;
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
+      max-width: 250px;
+      box-sizing: border-box;
+      transition: max-width 0.15s ease;
+    }
+
+    .secret-pill.revealed {
+      max-width: 380px;
+      background: #111111;
+      border-color: var(--border-strong);
+    }
+
+    .secret-val {
+      font-family: var(--font-mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      word-break: break-all;
+    }
+
+    .secret-pill.revealed .secret-val {
+      white-space: normal;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      max-height: 120px;
+      overflow-y: auto;
     }
 
     .btn-reveal {
@@ -426,20 +523,49 @@ HTML_PAGE = """<!DOCTYPE html>
       cursor: pointer;
       font-size: 0.75rem;
       padding: 0;
+      flex-shrink: 0;
     }
 
     .btn-reveal:hover {
       color: var(--text-primary);
     }
 
+    .source-path {
+      font-family: var(--font-mono);
+      color: #CBD5E1;
+      font-size: 0.73rem;
+      max-width: 280px;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      line-height: 1.35;
+    }
+
     .snippet-text {
       font-family: var(--font-mono);
-      font-size: 0.75rem;
+      font-size: 0.73rem;
       color: #999999;
-      max-width: 320px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      max-width: 350px;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      line-height: 1.35;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.25rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-top: 0.25rem;
+    }
+
+    .occ-item {
+      margin-bottom: 0.55rem;
+      padding-bottom: 0.55rem;
+      border-bottom: 1px dashed var(--border-subtle);
+    }
+
+    .occ-item:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
     }
 
     .clean-state {
@@ -456,12 +582,7 @@ HTML_PAGE = """<!DOCTYPE html>
   <header>
     <div class="brand">
       <div class="brand-mark"></div>
-      <div class="brand-title">credential-detector</div>
-      <div class="brand-version">v2.0</div>
-    </div>
-    <div class="status-dot">
-      <div class="dot"></div>
-      <span>local</span>
+      <div class="brand-title">credwatch</div>
     </div>
   </header>
 
@@ -501,6 +622,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
     <!-- Results Panel -->
     <div class="panel" id="results-card" style="display: none;">
+      <div id="scan-status-banner" class="status-banner"></div>
       <div class="summary-strip">
         <div class="summary-item">
           <span class="summary-label">Findings</span>
@@ -554,16 +676,16 @@ HTML_PAGE = """<!DOCTYPE html>
 
     const SAMPLES = {
       chat: `User: help me fix my connection
-User: my gmail password is MySecureGmailPass2026!
-User: connect via ssh password: server_root_pass_99
-User: token sk-proj-sampleOpenAiKey1234567890abcdefghij
-User: login admin@company.com:SuperSecretPass!`,
+User: my gmail password is FAKE_GmailPass2026!
+User: connect via ssh password: FAKE_server_root_pass_99
+User: token sk-proj-FAKE_sampleOpenAiKey1234567890abcdefghij
+User: login admin@company.com:FAKE_SuperSecretPass!`,
 
       env: `PORT=3000
-DATABASE_URL=postgresql://dbuser:ProductionDbSecret99@postgres.cluster.local:5432/main
+DATABASE_URL=postgresql://dbuser:FAKE_demo_password_99@postgres.cluster.local:5432/main
 AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
 aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-AUTH_TOKEN=jwtSecretTokenForProduction123456`,
+AUTH_TOKEN=FAKE_jwtSecretTokenForTesting123456`,
 
       safe: `// Example placeholder code
 const dbUser = "admin";
@@ -602,6 +724,13 @@ const sampleKey = "<api_key>";       // Placeholder`
 
       const infoEl = document.getElementById('file-info');
       infoEl.style.display = 'block';
+
+      if (file.size > 50 * 1024 * 1024) {
+        alert('File size exceeds the 50 MB web limit. For larger codebases, use the CLI directly: python cli.py scan <path>');
+        infoEl.innerHTML = '<span style="color:#FF453A;">File exceeds 50 MB web limit. Use CLI for large repositories.</span>';
+        return;
+      }
+
       infoEl.innerText = 'reading ' + file.name + '...';
 
       const reader = new FileReader();
@@ -691,7 +820,9 @@ const sampleKey = "<api_key>";       // Placeholder`
     }
 
     function renderDashboard() {
-      document.getElementById('results-card').style.display = 'block';
+      const card = document.getElementById('results-card');
+      const banner = document.getElementById('scan-status-banner');
+      card.style.display = 'block';
 
       let crit = 0, high = 0, med = 0, low = 0;
       latestFindings.forEach(f => {
@@ -701,14 +832,40 @@ const sampleKey = "<api_key>";       // Placeholder`
         else low++;
       });
 
-      document.getElementById('count-total').innerText = latestFindings.length;
-      document.getElementById('count-unique').innerText = latestGrouped.length;
+      const total = latestFindings.length;
+      const unique = latestGrouped.length;
+
+      document.getElementById('count-total').innerText = total;
+      document.getElementById('count-unique').innerText = unique;
       document.getElementById('count-critical').innerText = crit;
       document.getElementById('count-high').innerText = high;
       document.getElementById('count-medium').innerText = med;
       document.getElementById('count-low').innerText = low;
 
+      const timeStr = new Date().toLocaleTimeString();
+      if (total > 0) {
+        banner.className = 'status-banner has-findings';
+        banner.innerHTML = `<span><span class="pulse-dot alert"></span><strong>Scan Complete</strong> &mdash; ${total} finding${total > 1 ? 's' : ''} detected across ${unique} unique credential${unique > 1 ? 's' : ''}</span><span style="color:var(--text-tertiary);">${timeStr}</span>`;
+      } else {
+        banner.className = 'status-banner clean';
+        banner.innerHTML = `<span><span class="pulse-dot clean"></span><strong>Scan Complete</strong> &mdash; 0 findings detected. Target is clean.</span><span style="color:var(--text-tertiary);">${timeStr}</span>`;
+      }
+
       renderTable();
+
+      setTimeout(() => {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
 
     function renderTable() {
@@ -721,97 +878,101 @@ const sampleKey = "<api_key>";       // Placeholder`
 
       if (currentViewMode === 'grouped') {
         let html = `
-          <table>
-            <thead>
-              <tr>
-                <th>Severity</th>
-                <th>Confidence</th>
-                <th>Rule</th>
-                <th>Secret</th>
-                <th>Occurrences</th>
-              </tr>
-            </thead>
-            <tbody>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 100px;">Severity</th>
+                  <th style="width: 170px;">Confidence</th>
+                  <th style="width: 190px;">Rule</th>
+                  <th style="width: 250px;">Secret</th>
+                  <th>Occurrences</th>
+                </tr>
+              </thead>
+              <tbody>
         `;
 
         latestGrouped.forEach((g, idx) => {
           const occHtml = g.occurrences.map(o => `
-            <div style="margin-bottom:0.35rem;">
-              <span class="tag-context">${o.context_type}</span>
-              <span style="font-family:var(--font-mono); color:#CBD5E1; font-size:0.75rem;">${o.source}:${o.line}</span>
-              <div class="snippet-text">${o.snippet}</div>
+            <div class="occ-item">
+              <div>
+                <span class="tag-context">${escapeHtml(o.context_type)}</span>
+              </div>
+              <div class="source-path">${escapeHtml(o.source)}:${o.line}</div>
+              <div class="snippet-text">${escapeHtml(o.snippet)}</div>
             </div>
           `).join('');
 
           html += `
             <tr>
-              <td><span class="tag-severity sev-${g.severity}">${g.severity}</span></td>
+              <td><span class="tag-severity sev-${g.severity}">${escapeHtml(g.severity)}</span></td>
               <td>
-                <div style="font-family:var(--font-mono); font-size:0.75rem; color:#FFFFFF;">${g.confidence}</div>
-                <div style="font-size:0.68rem; color:var(--text-tertiary); max-width:200px;">${g.confidence_reason}</div>
+                <div style="font-family:var(--font-mono); font-size:0.75rem; color:#FFFFFF; font-weight: 500;">${escapeHtml(g.confidence)}</div>
+                <div class="conf-reason">${escapeHtml(g.confidence_reason)}</div>
               </td>
               <td>
-                <div style="font-weight:500; color:#FFFFFF;">${g.label}</div>
-                <div style="font-size:0.68rem; color:var(--text-tertiary);">${g.category}</div>
+                <div class="rule-title">${escapeHtml(g.label)}</div>
+                <div style="font-size:0.68rem; color:var(--text-tertiary); margin-top:2px;">${escapeHtml(g.category)}</div>
               </td>
               <td>
-                <span class="secret-pill">
-                  <span id="grp-${idx}">${g.redacted_secret}</span>
-                  <button class="btn-reveal" onclick="toggleSecretGroup(${idx})">&#x25C9;</button>
-                </span>
-                <div style="font-family:var(--font-mono); font-size:0.68rem; color:var(--text-tertiary); margin-top:2px;">H: ${g.entropy}</div>
+                <div class="secret-pill">
+                  <span class="secret-val" id="grp-${idx}">${escapeHtml(g.redacted_secret)}</span>
+                  <button class="btn-reveal" onclick="toggleSecretGroup(${idx})" title="Toggle Reveal">&#x25C9;</button>
+                </div>
+                <div style="font-family:var(--font-mono); font-size:0.68rem; color:var(--text-tertiary); margin-top:4px;">H: ${g.entropy}</div>
               </td>
-              <td>${occHtml}</td>
+              <td><div class="occ-group">${occHtml}</div></td>
             </tr>
           `;
         });
 
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         body.innerHTML = html;
 
       } else {
         let html = `
-          <table>
-            <thead>
-              <tr>
-                <th>Severity</th>
-                <th>Confidence</th>
-                <th>Rule</th>
-                <th>Target</th>
-                <th>Secret</th>
-                <th>Snippet</th>
-              </tr>
-            </thead>
-            <tbody>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 100px;">Severity</th>
+                  <th style="width: 120px;">Confidence</th>
+                  <th style="width: 180px;">Rule</th>
+                  <th style="width: 200px;">Target</th>
+                  <th style="width: 240px;">Secret</th>
+                  <th>Snippet</th>
+                </tr>
+              </thead>
+              <tbody>
         `;
 
         latestFindings.forEach((f, idx) => {
           html += `
             <tr>
-              <td><span class="tag-severity sev-${f.severity}">${f.severity}</span></td>
+              <td><span class="tag-severity sev-${f.severity}">${escapeHtml(f.severity)}</span></td>
               <td>
-                <div style="font-family:var(--font-mono); font-size:0.75rem;">${f.confidence}</div>
+                <div style="font-family:var(--font-mono); font-size:0.75rem; font-weight: 500;">${escapeHtml(f.confidence)}</div>
               </td>
               <td>
-                <div style="font-weight:500;">${f.label}</div>
-                <div style="font-size:0.68rem; color:var(--text-tertiary);">${f.category}</div>
+                <div class="rule-title">${escapeHtml(f.label)}</div>
+                <div style="font-size:0.68rem; color:var(--text-tertiary); margin-top:2px;">${escapeHtml(f.category)}</div>
               </td>
               <td>
-                <span class="tag-context">${f.context_type}</span>
-                <div style="font-family:var(--font-mono); font-size:0.72rem; margin-top:2px;">${f.source}:${f.line}</div>
+                <span class="tag-context">${escapeHtml(f.context_type)}</span>
+                <div class="source-path">${escapeHtml(f.source)}:${f.line}</div>
               </td>
               <td>
-                <span class="secret-pill">
-                  <span id="flt-${idx}">${f.redacted_secret}</span>
-                  <button class="btn-reveal" onclick="toggleSecretFlat(${idx})">&#x25C9;</button>
-                </span>
+                <div class="secret-pill">
+                  <span class="secret-val" id="flt-${idx}">${escapeHtml(f.redacted_secret)}</span>
+                  <button class="btn-reveal" onclick="toggleSecretFlat(${idx})" title="Toggle Reveal">&#x25C9;</button>
+                </div>
               </td>
-              <td><div class="snippet-text">${f.snippet}</div></td>
+              <td><div class="snippet-text">${escapeHtml(f.snippet)}</div></td>
             </tr>
           `;
         });
 
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         body.innerHTML = html;
       }
     }
@@ -819,28 +980,30 @@ const sampleKey = "<api_key>";       // Placeholder`
     function toggleSecretGroup(idx) {
       const g = latestGrouped[idx];
       const el = document.getElementById('grp-' + idx);
+      const pill = el.closest('.secret-pill');
       if (el.innerText === g.redacted_secret) {
         el.innerText = g.raw_secret;
         el.style.color = '#FFFFFF';
-        el.style.fontWeight = 'bold';
+        if (pill) pill.classList.add('revealed');
       } else {
         el.innerText = g.redacted_secret;
         el.style.color = 'inherit';
-        el.style.fontWeight = 'normal';
+        if (pill) pill.classList.remove('revealed');
       }
     }
 
     function toggleSecretFlat(idx) {
       const f = latestFindings[idx];
       const el = document.getElementById('flt-' + idx);
+      const pill = el.closest('.secret-pill');
       if (el.innerText === f.redacted_secret) {
         el.innerText = f.raw_secret;
         el.style.color = '#FFFFFF';
-        el.style.fontWeight = 'bold';
+        if (pill) pill.classList.add('revealed');
       } else {
         el.innerText = f.redacted_secret;
         el.style.color = 'inherit';
-        el.style.fontWeight = 'normal';
+        if (pill) pill.classList.remove('revealed');
       }
     }
 
@@ -953,7 +1116,7 @@ def main():
     url = f"http://127.0.0.1:{PORT}"
     print()
     print("=" * 60)
-    print(" [*] credential-detector - Minimalist Web GUI")
+    print(" [*] CredWatch - Minimalist Web GUI")
     print("=" * 60)
     print(f"  URL: {url}")
     print("  Status: Running locally on your machine")
