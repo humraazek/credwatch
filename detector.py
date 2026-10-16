@@ -333,6 +333,43 @@ def scan_text(content: str, source_name: str = "Input") -> List[Dict[str, Any]]:
     return dedup_findings(findings)
 
 
+import io
+import zipfile
+
+TEXT_EXTENSIONS = {
+    ".txt", ".md", ".log", ".json", ".jsonl", ".yaml", ".yml",
+    ".env", ".cfg", ".conf", ".config", ".ini", ".toml",
+    ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rb", ".php",
+    ".sh", ".bash", ".zsh", ".bat", ".ps1", ".cmd",
+    ".xml", ".html", ".sql", ".properties",
+}
+
+
+def scan_zip_bytes(zip_bytes: bytes, zip_name: str = "archive.zip") -> List[Dict[str, Any]]:
+    """Scan all files inside a zip archive in-memory."""
+    findings = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            for info in z.infolist():
+                if info.is_dir() or info.file_size > 10 * 1024 * 1024:
+                    continue
+                filename = info.filename
+                ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+                base_name = filename.rsplit("/", 1)[-1]
+                if ext not in TEXT_EXTENSIONS and not base_name.startswith(".env") and base_name not in ("Dockerfile", "Makefile"):
+                    continue
+                try:
+                    with z.open(info) as f:
+                        content = f.read().decode("utf-8", errors="ignore")
+                        file_findings = scan_text(content, source_name=f"{zip_name} > {filename}")
+                        findings.extend(file_findings)
+                except Exception:
+                    continue
+    except Exception as e:
+        return []
+    return dedup_findings(findings)
+
+
 def dedup_findings(findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Deduplicate findings based on line, source, and pattern."""
     seen = set()

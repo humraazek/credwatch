@@ -57,5 +57,24 @@ class TestDetectorAccuracy(unittest.TestCase):
         self.assertGreater(high_entropy, 3.0)
 
 
+    def test_zip_scanning(self):
+        import io
+        import zipfile
+        from detector import scan_zip_bytes
+
+        # Create an in-memory zip containing a mock .env file
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w") as z:
+            secret_line = "DATABASE_URL=postgresql://user:SecretDbPass99@localhost/db\n"
+            z.writestr("src/config/.env", secret_line)
+            z.writestr("README.md", "# Project\nNormal text here\n")
+
+        zip_bytes = zip_buf.getvalue()
+        findings = scan_zip_bytes(zip_bytes, zip_name="test_project.zip")
+        self.assertEqual(len(findings), 1)
+        self.assertIn("test_project.zip > src/config/.env", findings[0]["source"])
+        self.assertEqual(findings[0]["pattern_id"], "db-connection-string")
+
+
 if __name__ == "__main__":
     unittest.main()

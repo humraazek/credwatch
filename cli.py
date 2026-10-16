@@ -31,11 +31,17 @@ SKIP_DIRS = {
 }
 
 
+from detector import scan_text, scan_zip_bytes, redact
+
+
 def scan_file(filepath: str) -> list:
     p = Path(filepath)
     if not p.is_file():
         return []
     try:
+        if p.suffix.lower() == ".zip":
+            with open(p, "rb") as f:
+                return scan_zip_bytes(f.read(), zip_name=p.name)
         with open(p, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
         return scan_text(content, source_name=str(p))

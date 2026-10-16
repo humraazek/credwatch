@@ -7,6 +7,7 @@ An offline, zero-dependency tool and **interactive Web GUI** to detect accidenta
 ## ✨ Features
 
 - 🖥️ **Interactive Web GUI** — Drag & drop files or paste text with instant visual findings.
+- 📦 **Full .ZIP Archive Scanning** — Upload entire zipped projects/repos; unpacks and scans all files inside automatically.
 - 👁️ **Mask / Unmask Toggle** — Inspect what was caught safely on your own local screen.
 - 🧪 **Built-in Test Presets** — Test AI chat leaks and config files with 1 click.
 - 🧮 **Shannon Entropy Scoring** — Distinguishes real high-entropy passwords from plain English.

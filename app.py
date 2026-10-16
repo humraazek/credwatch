@@ -7,6 +7,7 @@ AI conversation logs, and code snippets for leaked credentials.
 Zero external dependencies - Uses Python standard library only.
 """
 
+import base64
 import json
 import os
 import sys
@@ -14,7 +15,7 @@ import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from detector import scan_text
+from detector import scan_text, scan_zip_bytes
 
 PORT = 5050
 
@@ -440,8 +441,8 @@ HTML_PAGE = """<!DOCTYPE html>
       <div id="tab-file" style="display: none;">
         <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
           <span class="dropzone-icon">📥</span>
-          <p><strong>Click to browse</strong> or drag & drop any file here</p>
-          <p style="font-size: 0.8rem; margin-top: 0.4rem;">Supports .env, .txt, .json, .log, .py, .js, .yaml, and more</p>
+          <p><strong>Click to browse</strong> or drag & drop any file or <strong>.zip archive</strong> here</p>
+          <p style="font-size: 0.8rem; margin-top: 0.4rem;">Supports .zip codebases/exports, .env, .txt, .json, .log, .py, .js, .yaml, and more</p>
           <input type="file" id="file-input" style="display: none;" onchange="handleFileSelect(event)">
         </div>
         <div id="file-info" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--accent); display: none;"></div>
@@ -490,6 +491,7 @@ HTML_PAGE = """<!DOCTYPE html>
     let activeTab = 'paste';
     let fileContent = '';
     let currentFileName = 'Pasted Text';
+    let isZip = false;
     let latestFindings = [];
 
     const SAMPLES = {
@@ -527,6 +529,7 @@ function login() {
       switchTab('paste');
       document.getElementById('scan-input').value = SAMPLES[key];
       currentFileName = 'Sample ' + key.toUpperCase();
+      isZip = false;
       runScan();
     }
 
@@ -534,13 +537,25 @@ function login() {
       const file = evt.target.files[0];
       if (!file) return;
       currentFileName = file.name;
+      isZip = file.name.toLowerCase().endsWith('.zip');
       const reader = new FileReader();
-      reader.onload = (e) => {
-        fileContent = e.target.result;
-        document.getElementById('file-info').innerText = 'Selected: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
-        document.getElementById('file-info').style.display = 'block';
-      };
-      reader.readAsText(file);
+
+      if (isZip) {
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          fileContent = dataUrl.split(',')[1]; // extract raw base64
+          document.getElementById('file-info').innerHTML = '📦 Selected ZIP Archive: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB) &mdash; <span style="color:#10B981; font-weight:600;">Will extract & scan all files inside archive</span>';
+          document.getElementById('file-info').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = (e) => {
+          fileContent = e.target.result;
+          document.getElementById('file-info').innerHTML = '📄 Selected File: <strong>' + file.name + '</strong> (' + Math.round(file.size / 1024) + ' KB)';
+          document.getElementById('file-info').style.display = 'block';
+        };
+        reader.readAsText(file);
+      }
     }
 
     // Drag and drop listeners
@@ -565,16 +580,28 @@ function login() {
         return;
       }
 
+      const scanBtn = document.querySelector('.btn-scan');
+      scanBtn.innerHTML = '<span>⏳</span> Scanning...';
+      scanBtn.disabled = true;
+
       try {
+        const isZipScan = (activeTab === 'file' && isZip);
         const resp = await fetch('/api/scan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: content, source: currentFileName })
+          body: JSON.stringify({ 
+            content: content, 
+            source: currentFileName,
+            is_zip: isZipScan
+          })
         });
         const data = await resp.json();
         renderResults(data.findings);
       } catch (err) {
         alert('Scan error: ' + err.message);
+      } finally {
+        scanBtn.innerHTML = '<span>🔍</span> Scan for Leaks';
+        scanBtn.disabled = false;
       }
     }
 
@@ -685,7 +712,14 @@ class LeakScanHandler(BaseHTTPRequestHandler):
                 data = json.loads(body)
                 content = data.get("content", "")
                 source = data.get("source", "Input")
-                findings = scan_text(content, source_name=source)
+                is_zip = data.get("is_zip", False)
+
+                if is_zip:
+                    zip_bytes = base64.b64decode(content)
+                    findings = scan_zip_bytes(zip_bytes, zip_name=source)
+                else:
+                    findings = scan_text(content, source_name=source)
+
                 response = {"status": "success", "count": len(findings), "findings": findings}
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
